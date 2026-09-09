@@ -1,0 +1,2213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>RFQ Sales Command Center</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
+<script>
+  tailwind.config = { darkMode: 'class' };
+</script>
+<style>
+  html,body{ font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; }
+  body{ background:#f8fafc; }
+  html.dark body{ background:#0b1220; }
+  ::-webkit-scrollbar{ height:8px; width:8px; }
+  ::-webkit-scrollbar-thumb{ background:#cbd5e1; border-radius:99px; }
+  html.dark ::-webkit-scrollbar-thumb{ background:#334155; }
+  .tabbtn{ transition: all .15s ease; }
+  [data-panel]{ display:none; }
+  [data-panel].active{ display:block; }
+  [data-subpanel]{ display:none; }
+  [data-subpanel].active{ display:block; }
+  @media (prefers-reduced-motion: no-preference){
+    .animate-fadein{ animation: fadein .3s ease; }
+    .animate-pop{ animation: pop .5s ease; }
+    .animate-toastin{ animation: toastin .25s ease; }
+  }
+  @keyframes fadein{ from{ opacity:0; transform:translateY(5px); } to{ opacity:1; transform:translateY(0); } }
+  @keyframes pop{ 0%{ transform:scale(1) rotate(0); } 30%{ transform:scale(0.86) rotate(-5deg); } 62%{ transform:scale(1.14) rotate(4deg); } 100%{ transform:scale(1) rotate(0); } }
+  @keyframes toastin{ from{ opacity:0; transform:translateY(10px) scale(.97); } to{ opacity:1; transform:translateY(0) scale(1); } }
+  th[data-key]{ cursor:pointer; user-select:none; }
+  th[data-key]:hover{ color:#0055ff; }
+  html.dark th[data-key]:hover{ color:#60a5fa; }
+  .logo-btn{ transition: transform .05s ease; }
+  .logo-btn:hover{ transform: translateY(-1px); }
+  .logo-btn:active{ transform: translateY(0) scale(.96); }
+  /* Sticky table headers: each table scrolls in its OWN boxed area
+     (max-h + overflow-y-auto on the wrapper) instead of the whole page
+     scrolling past it. Do not stick headers to the page scroll. */
+  table thead th{
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: #f8fafc;
+    box-shadow: inset 0 -1px 0 0 rgba(15,23,42,0.08), 0 1px 0 0 rgba(15,23,42,0.06);
+  }
+  html.dark table thead th{
+    background: #1e293b;
+    box-shadow: inset 0 -1px 0 0 rgba(255,255,255,0.06), 0 1px 0 0 rgba(0,0,0,0.4);
+  }
+  .kanban-col{ min-width: 260px; max-width: 260px; }
+  .kanban-card{ transition: transform .1s ease, box-shadow .1s ease; }
+  .kanban-card:hover{ transform: translateY(-1px); box-shadow: 0 4px 14px rgba(15,23,42,0.08); }
+  .chip{ font-size: 11px; font-weight: 500; padding: 2px 8px; border-radius: 999px; }
+  .msel-panel{ display:none; }
+  .msel.open .msel-panel{ display:block; }
+  .modal-backdrop{ display:none; }
+  .modal-backdrop.open{ display:flex; }
+</style>
+
+<script>
+  function isDarkByClock(){
+    var h = new Date().getHours();
+    return h >= 17 || h < 6;
+  }
+  function applyTheme(){
+    var explicit = document.documentElement.getAttribute('data-theme');
+    var dark = explicit === 'dark' || (explicit !== 'light' && isDarkByClock());
+    document.documentElement.classList.toggle('dark', dark);
+    if (window.__redrawCharts) window.__redrawCharts();
+  }
+  applyTheme();
+  setInterval(applyTheme, 60000);
+</script>
+</head>
+<body>
+
+<div class="min-h-screen text-slate-800 dark:text-slate-200">
+
+  <!-- ================= HEADER ================= -->
+  <header class="border-b border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/60 backdrop-blur sticky top-0 z-20">
+    <div class="max-w-[1400px] mx-auto px-5 py-3 flex items-center justify-between gap-4 flex-wrap">
+      <div class="flex items-center gap-3">
+        <button id="logoBtn" title="go on, click it" class="logo-btn -ml-1 rounded-lg p-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-200 dark:focus-visible:ring-blue-900">
+          <img id="logoImg" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAssAAAD6CAYAAABXsQr6AAAsd0lEQVR4Ae3dX3IUR7bH8VMthB33ZTQrcHsFFiugWYEhjBhiXhArAFaAvAJgBYgXxwyCAFZAswLkFdBewZVfbtiG7rx5KtWWkLql/lMnKzPr+4nQCIzGFuquql+dOnmyEqTnruvLRLbFyZZU0vefv/Oft/znfv1Zufrz1oz/95H/mqPjrxnVv3b1P/ut/v2G//hDDuVtdSQAAAC4UCVoz023JVdlUAfiifzgPw/qQByHhuVD/9889P/NX2XTf/6lOhQAAAD8jbAck1aMndxsIRgvKgTonryrQ/R/qqEAAAB0GGHZklaOv5VtH45/1N8lGI4vo+H5rf/4IJ/9Z1o3AABAxxCWm6YBedMHY5F7/mNbZvcV56nygdn5qvNBtS8AAAAdQFhuyl03kHEdkDUolxOQZwsV5015Rp8zAAAoGWF5HWGB3gNfbX0o5QfkeTQsP6PaDAAASkRYXkWoIj/2vxoIpkb+42fZkKH8pxoJAABAAQjLy9hxuxJ6kQeCeXS287705AWhGQAA5I6wfBlaLVYVQvPL6mcBAADIFGF5HkJyU0ai7Rn0NAMAgAwRlmfRdotKHmc4Fzllh7Iht2jNAAAAOSEsn8bCPXuV7NGaAQAAckFYVroN9VieCyE5lpGv2t+XV2ynDQAA0tbtsExfcruoMgMAgMR1Nyxry8XEV5PpS27bSDbkBr3MAAAgRd0Ly6GarCH5piAVR9KTn+W/1VMBAABISE+65F/ugWzKJ4JycrZ8lf+J3HGPBQAAICHdqCxrNXlT3ggL+HLAiDkAAJCM8sPyT+6mr5/rpAsW8OWDPmYAAJCEcsNy6E1+fDzpAvkZ+Y9bclAdCgAAQEvKDMs7btv/zd4w6aIAlezKy+qFAAAAtKC8BX66iE/kPUG5EE725Y67JwAAAC0op7JM20XZ2MAEAAC0oIywHLar1mkX25Krqt4C+uj4d31hQeJ5PXnELGYAABBT/mE5r/5kDcMj0fFoPflVvvhfb/pfz5v6oH8350Nzrx55d4/WEqGHGQAARJV3WNb+5ImkXGnUcPy2DsYTGa492eG22/OvGBt3EJgBAEAk+YZl3e3NyZ6kZ+i/rw/+J/vWZOzZbbfv/91dX/CmNyE3GCsHAACs5RmWd5xuMrIr6Rj66vE7+VP25W11JJZuu4F/1d4LjmRDrrFxCQAAsJRXWE5r22oNxS98FfmtvKqGEktYzPhJoEby2Qdm6xsUAADQWVckFyEoa0W17YkXRz4gP5Mv8rSlkNYXTPWPb55uCAAAgIE8NiXRaupV+SjtBmUNyT/7Sub3vpK811o1c9z5fuWzBnLHPREAAAAD6bdhaFCetLojX9uV5BO6k53uaIfzmJABAAAMpB2W2w/K+76S/Kj1kBx2J3yQ6PSPVLDgDwAANC7dnuV2g7Lupnc/2sI9/bv2ZMsH8+36s6s/vjv+0+36wwkutnW8i+M1AQAAaEialeU2g/JEnvnQZdOTrBXib+vgu+3/Oz9ICMJ9YWvr5lTyVF5WjwQAAKAB6YXl9qZeHPkAe19eV2+lSXfdwP97r/uAPJDwdyIYW3NyI+o4PwAAUKz0wvKO06A8kLgOZUNuNdbvGgLyjz607QrhuA3MXwYAAI1Iq2dZR4C5yEHZyQv5Ig/lYM1gdbII76GMCcgt01GDj/1n2jEAAMBa0qks33GPo0970LnJOjN5HaG/+gFV5ATRjgEAANaURmX5X+6BD5x7EtO6QTlsO/3Yf+wK0lTV1eWhAAAArKj9yvKO00VvHyWu+3JQ7csqmHmcl548kv9WTwUAAGAF7YbldkbErR6Uf3I3ffh6LrRb5OSo3qKcxX4AAGAFPWlT7KCsrRerBGWtJt9xb/xPSze9ICjnZet4sR8AAMDS2qssh8kXDyWWVXuUwxi45y1uuY0mbPjqMlthAwCAJbVTWdYFfTkEZZ3QMW5ty200aVy3zwAAACwlfmU5TJHQBX2x2hmGclDdWOr/EXYRfOJ/tSsoB6PkAADAkuJXlif1VtaxgvLIP36/v9T/42S77V1BWSp6lwEAwHLihuWw8UhfYtnwlcRl+lRPgvK2oEQDue0GAgAAsKB4YVkXysWcTezkEUEZ51BdBgAAS4gTljWITqIusNqXV0tuREFQ7opB3TcPAACwgDhhWefcxm2/+Hmpr99xGuQJyl0xjjiJBQAAZM1+Gsa/3bZ8jrqd9XLTL0If9Z6gS9jVDwAALMS+svyl3vUunko+LPy1Yd7znqBrdFc/qssAAOBStmE59vQLVcli1ULtW50QlDvLyQMBAAC4hF0bRth85JPEVslbeVnduvBrdMHhVfnIznwdxyYl6dBj8tt6/rqeN/pzv05vhnvHH/8nI1ppgAScPn4n/rObs5cCx2/Zpu+DiWzX74GqPpf/48L3g8jv9Wfn3w/6vvhDDlN8X9iF5bBoblfacU0OqsO5f3rHvfEvzE1Bty1yY4VmhRvVgUh9Mv1OwsLavqy+UZGeVEf+tRzVLViVP9EmerIFsjc9fqs6FP8gTR6/Ir/6sDTk+M1ECMZ6HteP6xLO6X1phr7+h/X5XPx5/S//vmj5PWETlu+4m/6HFrdX+WujmRuSsI01vsZCP2vhmNMb0+v+bDOI+DRHT7RDf/F9588DQ0ldeBI3EEtavXlZvRVcbMftiqUN/75cZg+ANp3c3GoYuhn1+A3H8LsUglIUlu+7g2pfmqDvh298fprIjxJulGLtxqzC+VyLXC0cP1Zh+VMiLQ77/kL9zL+weqDpxUiDMiPicKInj+S/S87kxsW+PqEOpH16/L+tL7yphsVwU/G/Yo3Wo4vp5lnjeua+nQ1/g55yWD65wb0n8QPRbBqQnD9+mwp9KdpxTqwcVKtnvfTO50pvpp7FvPFsPiyHu6OYG5AA61hu1CDmC0FDd0hM4wI726i+8Pb8iTa1wBKnPeyZf78zCWYe+/bBff/zvy8p0uNXA5Gr//7pHr96zta9FHKpzi8qtbAcniroxDA9X6T6fgiFkAjvh+bDcjpVZWAxn+WftGKsIdwgaxVqIHnZT+qie9tpL6htVZPWo/liLEpPsbJ/cpM7kLykdfyuK5WwnG+7qun7odnRcXrRJCgjN9/Qw74SnVO+47R1QKtxA8nPbh2OtJqYwhboIUQNxRYzxueZmJ8HRkkF5Z/czbq4FdpOBpKftI7f3GlI1nG/m/UN467kZ7d+L+vfwUBzYVnfrJWYfJOAqdCLhUVpJUovshPRXu9UH88tI1x09SSrF4w26QIWa473+xz3xNbPkgI9fnfce/9ee1NIcYvQvC59T4RxunuS9zm9X/8ddvz1qeH3QnNheeJPNFSVkadB6yEpB3ry0Yus3r2XeKzrSXbTXzCspyFc5E//KFHEukViu275wAn7p6Kj1hen6fGrffH5VpIvEyqLbR6/uQnV5CcFntP7fxdAGtJkG8auALnaZO72hfSkM/ZBssyL7Gl90baStqpU2ktcyTOxxlPAs6yrykNpk7ZMjevKYennub6E4/c9VeZL7Ljt42pyuW1ZDVaZmwnL9Cojf9cF5+kJdceV8HhuWaFK1UYF9i+JMcqQpylT4UI6EEsbLbVgTJ8GldMytagBVeYL3HF6c1jmE8Lz+sfvhbXGBjcTlqlSIH9Uls/SapTUj2y7Opu8X0+nMFowMleYVDEUayz0C8bm1692NiHRQNSNp0Hz9EWrzNpmgBN6PnN1u1eXbp76/uPj8U3CStYPy1SVUYYt+bfraij8Wuhje9PBatRsWlXXn0fMx7ouQiXSyQOB1DtL2v777dtqTpv2oXYvEM2mbQYGC76yFN4Xe9JVekz8y61UJFg/LFNVRinGna3AnNALytVO9DYuR38e+igv1gU31hi5ri/0i7GwL+aukfr+3Kwfr/PU4Gv9qMdvinQdBu8LHUbxZJUK83phWceNUFVGKSYdD8thc4KPHNNzNdL7trAYY+QodpQzLk7fl5NOt01dpl+f33S+dNeEVpRdQaAV5iUD83phecJjPBSlu4v8wmp5vdDy2PZifZFIgTnOGLlBZ6tt4TUciKWNSFMwurVgax1b9XzpNXpXs0RF+TwnT5c5j68elvUEy6NalGWrk8FBF3xMokxgKIXeUNgH5lhj5CadrThZF3v2oyzs0+BHf/JyVqgsojh6vCy8FmX1sDymVxkF6lrfclgZvSdYVpzA3KtDkC1d6Ne1MXLhAmlb7NmMcKNzEpSxLAIzQmvO80W+cPWwXLEYCkXqTr8fQXldITBbPo0Ilcmh2Nrq3KY84abY8gZhKL9Uh2KJoLy+JR/Fo0iDRSZkrBaWtUGe3iiUqRt9ywTlpmyZr7J3URaJdavCZr+w8YVYCtfgfcG67G94kb6JPx9c8h6oZBU6c5R+ZZTpSA6qf0rJ9EKri1xSU8nIn1dGIvXH7/73J4vbXH1R+4eEjUL6Cd6sH8pnuXG8oUjz7rhP5n9n57//MLKubGHqy3uxM/LnkO/FSqiEprcYd9HjN3zfqVVzR/74vWZ2/C5ixznJ11H9eofX/6wt/2dbGRRYh/64vTHvD6/IsjR9jwnKKFZY5NfGjlsxhON3oR4tY3pyHfqPD/6ufugvVKOlLlTaY3vFX3B7ouMr9WnAQNq1LVfrauUjsaGVSttqaFWf14dSurF5FX0oVvT4ncib4/DZJj1WD+vxhmP/+Yv/WOX43RAdd/ejtH/86nxqLSDcEFws3BQN/a8+SCgSLH7u1vfvF/+z1tddz9vOvB1qGYN67vpBtT/rD5evLIe91lO42AI2KrkVdSOBWMKFts3xUiEgT+TZ0hfXy4SbgEH9eL3NCkbPh+X/Vs1PFtFwsSmfxPbCcuQvfN+3Wl2zFt4nn8TShv8ZWtxs63vgautz0IeiN26f5W2Rx28le/7cH2829mlpV5aH9Y1R5V/3pt/bYWOkXf/vv55A9XnuE4ZVwrI+/hkIUCqrwNO29o5dfTynAflplCCmN/TtXXSPfFi6ZhKWdpy+J23HnZX63p+yL/bs+8rUfbEQtiq+dCGSgbjHr4an0FM+kDa01Y6UXlgOr7sG5APjxapT7Z67g0p+9jdMe+f/8TJi3JUD7bO74LWlnQV9cS+yZ7V34j30759r0rQQIix7bdWFfXvZs+79tgpaumlQ/Fno7R6/+n7vyfMWjt92+pfTCcvtvu7qtnvoX/sHrRU8ZjxhW24aRtdm0KKryholpAuCYgdlbbXQE84rf4fe1glXe89eVt8fT5OI+T1s+1C2J00LIWwotgbHj0XLYz/FaWQSlEP71J7ENayfkLR5/OrP8mW9UPJ+3ScbT/94/UH3aBW57dddvfJPt3r+xlO/n/i03encE5xlR8cxwBtd0JdSaJ9jFXXyxaiurr2uHibT+6onfr0AxFy8pht9WIyjijFGrme+s107NsyvXzavzSTq5AutKj6qny6ksshZb3o1ODnjcXynabtLqTeNsx3595mu1bmVzOuu34d+P3FGZ35txkZNi4flcOIfCFC+rWJ2NLsatQ1hWD++THH8mJ54NQDEO/FumUwdCT9b25sQXaFe2o5+ev2yHXc6qhe9NS20T/UljsPjqmJ6Pet6/L6qdusgH0vVmUEG4SnC60QXtb+q+4djt0We26hp8bBMCwa65NvEZpiuIgSEOAuCtO1Cw2jqkxT0xKsVlDhtGYP60X/TKvNtlGc+hsza2Pyx+rDx9344fvckBldPuEinmjxPCPLXIrVl9E3aqVIyPW+n/rqHcW6xA/NXT6IWD8tVPQsR6IZJAX3LE/PFYIFWa7XtIhdaQdmIdMHtyZPGq7R/1Qu9rKvLZbViVMbFng2DJxbjSH2zevxq1TaXkYE6mSH0s47E2ozH8cXI7bwdPzB/9YRt8bDMjn3okvaH/q9HJ0HEeHwbLrR7khutpMS54PYbr9KGUGPdv7lVTM+m/bEwbLwyF0bc7Yo1jt/LlPeUReX6umtgjtnDfOq1Xyws3+1UozugR0a+YVkf31YRqlK5nnCnphfcGFXapqtTLsIq8aqYiQDWC/uav3Hh+L1crMDs/GthsVi3Lbm/7vq9x1rsGXaHrS0WltneGl0zyXgixsSHA+uqcu4n3KlQEbSeK9x8dSrWGLncH0HbL0wfzdsed2Uxngppr2opx2+MG95xITeOOoqthNf9iz+fxulb//scuGgbxnUBuuUfkqMYi4JKOeFOaQ+k9Sp7i+ryxHyhn2T/CNo+5DT/SNi+qjzKqlf1MhqYXb1o19JuAdXlkfwVfZGcDW1Fm0T6uxxPxbg8LIc3SP6LnYDl/FNyNI5woe1FHN8Ui66ytw2fzVeXw6gnFvpdxH5h31CaZF9VHvnvubwdGvVJi/XNY+7VZX3dc1nEuYg4T9dUnX8vD8ufCcropPwqy6FXeSCWNjIYL7Wqsa/IWz7as6guxxgjl+tCP/vgud/4sVBFqISXevyGavmh2LmZbVuSK/R1j7PYr+6suDws9xgZh07K76Sos9Atw0GpJ9wp+0d7W/JNwxMOwhg5W/ku9LOtim82fKMSI9w33V+dmg3TGer5TsYoqW3utDjV5W29Seot9IVA9+QXlm1DzajYE+5p1o9zJw0XHzTgV+aTMQbyb5fXdWCn/n4tv+dD+aVquoppObVjZDILOjWhf9nu71na/PESxFi78T/Svzgsh0cOhGUgdbpTnG1VqvwL7dS4XiBpVZ0aNN7WEONi8SW7iUjWoabpqrJeZwdip+ynQqeFXf6s2jHKmT9einFdWbbtxf4s2xeH5W8JykAWNkyrUsPiH9+eptVay+pU1XDwjPEoMqedzMKi9F2xMzI4HizD/ahTx6+ynG5TzvzxMoSna+/EUnVZZXlivFgIwPrCuDi7yp/rUFV5SqtTdov9mr+x6RlfLCz6ra2Mza9bQ2laZVxV7hrbG8j854+XxpkXC77rXfIFzFcGUjc23nQhXHi6x+4moflHuX/Kvlg/ipxkstjbuvLXdO+vbQtV96rKU5Y3+bncOHbFZ/N1G/+8bIEfbRhA+ixbMLpXlZoKIcMmgDbdihEeRVr3Lg+S79e86wbZjYuznDjVi9DPnirL6nIuN45dEc5/I7FzQWU59H3xqAFIWXgcOBAb3a1KTdkF0OZvcOKMkUt7od/Y9MZRq5UvpGmWLRj2k1LSZteetE0rRnI+iJ0LR8f1BUDaNkxbMIbSdXYBdKvx7XPD7lxDsXUv2ZAQY2Ff0y1JtpXwYWcmYMxj1560JVd48p6YkRiaH5ZZ3Aekz/IRrkUVLTeWAdRiUab9Ysx0F/rZj7dr/mdre53l+LWclJD6U5aucaZh+cLK8g8CIHVW1Y2jzi7sO8vqUa5FUIoxRm5i3Oqwqp7p+LUj/xRnKE2zXES/wZOhmt2kBAYgpGSjrbDsaMNAp40kdbabBln2f+VlktnF1n6M3HZyC/3st4p+a9TSYHX80oIxZTcpgb7ltIzE0EWVZfpxgJTZ9it3e2HQaQf1tsY2fY9N9y2rGGPkeslt+2tb7bbYKjrs2mcVtn4VBKGVymZHP/qWO2N2WA4HMYCUbRieqDfNtovNU2VUXbaYkR1jjJz2W6dSVQs3HAOxM8ysqqyvDze7X7N5UrZBWO6K2WF5g5Fx6LyRpM9qXcGR/FIRlk+rjC62lVHrQK+uLtu6Kg8lBWPz7YetFsrZBa0v3OyeYfPzmLC2KxnGbUezw7Ljbgmd97ukzq5HkwvtWV+Mbp6cfCcWwoVjKJZcIq0YlfEOlnazxq2C1uFx6wFOWJ3TyEodcWXmP52wuA8dV0kOFxurE3VfdtxzwYnKP21zYmEgVnSMnG2QDNt2tzk1xXphn+UOePpUweY9xfF7lt3x2xd0wpU5/5xHC+g2l3gbhvZpjsVKXyTRWbptsbnQKruWNw2xd9zINExWdQvEUNpju7DPcgc8u9dF31O7ghOWx6/27lPJL968aRj0LKPbUg/LVDRKsWW8UM56Y4pBawv97Bf27Zv1QVpMQUE7/odzcRfMC8v04aDbribehvGZG9piWF5sw3bdtu/lthb6WS/ss93Bsi8owxdeyy44H5YZsg2I/F/ileUrnKCLYXmxDY+HbavLutAv9nUj/Pduip1D015sbnbL4Xgtu+B8WN7kIozOO0q+B40TdDmsX0v7mbtbvro8kJg266Bs+XOznVPd4/gtRkVm6oLzYZkZy8BIUkdYLod1cAoV0qFYij1GrjJtwbAcFxcQlsvBubgTzoflMXdJ6LzfJHUVJ+hixLjYOoPtmr82qMfIxXDX/3ec6XVqKNYIWCX5h6B458MyjxTQdRWbcqAwobps21pUmfYQnxgbj4vbML+xAJCZ82GZO16AsIx4Yp1zK+M+XJ15bL3QL4xc2xU776y3zQWQn1mVZZvtV4FcTLLYvQ/liPMY136M3JZ8Y7wZxth4IaGrf0YA8BUqy8BZX6gso0AxxshN5EexZL2wr82tu5GrvqB4szYlISyjyw7ZuhTFsh8jZ7fQz35hH73KAGaa1YZBWEaXpT8JA1hVjDFyVgv97Bf2DQUAZqANAzitl80FcyTAKiYZLvSzX9i3H3Vhn+P4BXJCGwZw2ph+ZRTudaWtGLYL/a7KQ2nSxHjhIOPiAFygJwBO5LK4j8oU1mE9Rs41vtDPsgVjGH1c3AbHL5CTK1/9Th91jQXoqnwW9+l4O7tb3SMfpljkGIuT3yU2HSO3aTpZYrte6NfEdIkdt2u8sM92QshsI7HD8RsXP+sOuCIApvJpwdj036vVjW3PP5L+b8W82ZLpTeEd99aHULtd98KYt6Gsz7KqPJKDal9i+8MHrE2x8kJeVs22wQAdRxsGcOKD5OIPw2rGRH4QlM9+od9g7YV+YWHfQKz0zH8Gs4UnWFbH8HUB0Kivw/IfPE5Ah+U0OkovtpXZo1y7aiPSEWOM3LoL/camrSJa/baeO32RkdjYNt92HOiYr8MymzGgu0bRF/msy26R39ZxRQ+l68k7seTkgayjMt3eer/VY76SX8XKFR+YATSGNgwgGEp+7C62jupyJ/zpA6P1GLlVd/SzXtjnWlnYd6IyXCNRcfwCTZq1g99IgK6pjCtsNuwutpPGR38hRaGdx7Zvt1q5lWK9qvTFRo1M6liH7Ux3jl+gQVSWAfVXhpVl2x7rAX2PHaFj5GwNlm7r2XHaRmDZStD+JiS2M937tFIBzZm13fVIgG4ZZtmvH/ot7b7vb4x3TUMawnt/KJaW34HPtqrcxri4s8LP3fLp0K4AaMSsNozfBOiSXpYtGEFlGHJoxegOZ1xp1YV+iz6pCBXRXbEzlHTYjat0pjccQKfMqiwzEQPdktPIuLMq09nQg5UXZyEv9mPkthZ+UjE2nYChx3v7LRhTE+OfOccv0IhZPcv57GIGrG8kv1T5vuet58Syqr47rJ+wLPqkojKdrfwuqRGRY+Mb9cp4TjXQEefD8oTKMjol3xYMpRd+2wk291jo1xH2Y+Quf1Jx1/+55bi4qv47psO+X5ynQ0ADzoflTSrL6JDNxC6eq7GcF7u19i5syEOcMXIXP6kY+5szOyN5WbW5Y99s1hX9yvRnCnTC+bCc2y5mwOrybsGYmhg/yl1mcRby1jO/eZz/pMJ+YV86vcqn/Wn+M9+lugysZ/acZTYmQRdULe/g1ZSwOMsy9Gt1md7HLgjFkqHYmb/Qz35h31BSFGN0H73LwFrmbUpCKwbK1yuiBSOw3oHQyUOqUx1hPUZu3kI/20C3n/RT04lx+wu9y8BaZodlx6xlFG9YVMtR2IXNdnFuJU8E5dMnFbZPF88Ht5/cTdOFfSmNi5slTMWwPn6f004FrKY355+OBChbGS0YU2Fx1lBsbcsdtyfoAtvjo3dmw4wN00Vo6d8Yx1hcqVtg004FrGR2WP5CWEbhPkt6q+LXZf8oV586PeZxbgdYP6lwvro8rXLqwj5nOs87jxvj8DO3pe1UdxzTMYAlzQ7LjI9D2faPF9WUxX4XtkAf54bJBShVOD7ijCQcm1Y7R3JQ7UsO9GfuIgR750M5xy+wlNlhOTyyYnMSlGkzQgW2LS5Kb2bfB5w39D8Wb18sueNWjMpwCkaV2ROkK7In9rb88fuewAwsrnfBn40EKM9hEbOV54lVXdb+5au+woxyHdTHyVDsbMmOe266sK+X2Y2xFqpclLYRbniBJcwPy5X8KkB5yq0qT7lIK/+1z1TDDspl/17aFTtpj4ubJ1SXYzzZ3fZP2d4TmIHLXRSW6VtGafLpX1xHGP0V6/HzbicC847bli4KTyrybMlzmU680YBfRbup70ZgvsuiZKxnflgeE5ZRmFwvnqvoySOJF3I0MH8stgfyjtP50h87O0WgyvJpzOg46OdJJ2PE20lXA3PJx+/jukdbPwMrmh+WvxCWUZgrBe3Yd5nQ+xhzI4bt4hYNabVtx72vx20p598/XQzMMTa8aV7am5BcRidjjOsb3lj69fFb0hOUcPxqT/xe/Xv9TGDGiuaH5TA6iMCMUuTZv7iOV5WGnKHEoxfcj/4CtSu508e2V/3fRc5MauhiYLYfI9e0URFz1F9XbyNP8+hLeIKSf6DU0B+O392v/jmBGSvqXfLnHwQoQerb3VrZkPsStyqovY/P64pOjlVmrUZp24VW2eZNaehiYHZZhc9hMXPU/4p+/IZAmevxq0IY/njB8UtgxtIuDsuTqFUpwEr3qspT8dsxpnaPH+vuSi70e71aX2QfXvq1XQvM8UYSrq+kG2MN/ZM6MMcWjt9/ucuPhVTo06A77tPfbRcXITBjSReH5TFhGQXoalV5Kn47xlRfQpX5Y9Kr0fV7095k/V6XmfnbtcA8yWKh37C4G2Ntx2jnZ9/3/90n/tj4lPRN7/T4vehp0CwEZiyhuvQrwkVkIECe9uWgaqMykxZtL7h6waPJOIb1jct/EphSoD+Pb3z1THeRW/dnUvl/z8uqG5NWdtz/Smi1SVMlt/xrkX+/8ln6ftURb7qQtj0j0YWTKYzfnB6/E/lR1s0nlQ/NL6v2Cyo7zomVg+ryrFcCw5/h5T/AO27PX0y4+0KeNuT7zrZgnBVWuusFt+2wMxK96G5ErgLqBfbbemqHVoNvSpM/h64E5rSvBzpH/XsplfYQT5asntoY1Tsj6uLD2OdWrSJrQHb1wr0mj9/2AzNheX2thuXb/s1Z1RdYIDdUlc8Kj1NT2kRk6C+87+rg3PQ25NNw7PxHqEDpzYLdjUIXAnOocH6SNKvL94vfdCjc8H6UdNgdv+rfTm9uB/4Yvu4/BmJ7/LYbmAnL62s1LIdvIO1Hb8B5R/4Efo2q8gy3fXWwSrI6GMZVVvUUnkN/Edbfjy59DbXi1vPnp88+DOvnifwgIRj3JfZ5qwuB+Y57U291npquPEVK74Z3anr8amj+sPTx+8Ufr1XdJ93m8dteYCYsry+BsKwLhB4IkAudAPGq2hPMlm5gnu/sjmbtP46erfTAnObTxm49ReL4tdPW8UtYXp/hz/CyOctBXjM2gRFB+RL688lt+2+9uJ7+SFXpUzJSHCO3meWW3KsLx29eU344fpGxxcJyODmWMeQdXdDtUXGLelXtZheYc1H+BTel941Nv2zqcgzMuSAw44zFwnLARRU5GBW/yKdJGpjzmJ+bH73g3k54vvQ6wnbSqRRQunttIjDbITDjlMXDMq0YyMGG3BAs53X1kAuukV6haz10Z7kqiZssbo4JzHZ04xKdAIPOWzwsh1aM7j3qQj60Qsr0i9VwwW2evh9fVrekVH/JU2nfUCDHazR0gSPtkk3R4/ezXKtvDNF5y7Rh6CrRdwKkaSSbSVy886UX3IncOrdqHcsa+RuPG3XFvmQhRAylTV3fyv40rbDruEyO33Ud1edBPX4Jyji2XFgOlQTePEjRz1SVG/C6euvPCje44K5oWo16lcCW3jG0+zRin2P+DP159OpWtKFgFcP6huN1gVumYy3LhWW9y3JUl5GcfRb1NUgvuH/5CwYL/5ZxUk3uUjWqzTFyTHKZTY/fg+oGbVVL0WzzqP65cQOGGZYLy8G+AOkY8SjWgAa+0EZwnyrzJbpWTT6r10oBZdTZn/eiQh8zbRmX2/fH7/f+50UbH+ZaPiynOJAeXUb7hSWt2OtjXap4sww7WU0+68+6gBL7788N8iIOqkOeEs11WB+/uvMjvcm4xCqV5bb71IAp2i9i0JsRncdMlXlqVC8A0ke2VDfbGCN3dDznGYuYPiXa8NVTjl81bbno7tMgLG21sEx1Ge2j/SI2vTF5WX1f3yx386I7vch+zwKgM3pR2/PeUglcgd706vHb3Zveo/rcRcsFVrBaWFZUl9GmiQ8ttF+0Q3shQ2tGV84BuniPi+xFwrE4lBi4SV5P9256T4fkPW60sIpK1rHj3vv/HQgQk574wuIVtO2u68sX2fXh+Z5/XfpSlmHd60kVeTG6tXcl78XWsG5/QTN0d7pNuelft8dFHr+6+FR76nMIyDvOiZWDar2slwvDn+F6P8A4J0fgtFH9GBzp2XG7/n91e+dtyZdeVF/44PCWfsYV7LiPYvv632edgpFw/N6TvAtg2j8fbnJzO34Jy+tLNiwrqsuIR/uUmYOZuh237cPmQ1/VuZ5JtUoD8qFoSP5MP+xa/uUe+qDyRGxwoxyDPi0a++O3kh8zqjbnVUWehbC8vqTDMtVlxBK2IOWReE7C+eGm/9V1SaniXNV9yO/qCvIXH5QJyM0Ij/U/+V9tSfOoKsemN756/Lr6+B1IKsLxO/S/+lDMDS5heX1Jh2V12+37f9M9AazQp5w/rVh99oG5V190f5B4F9/waNbJb/6Ga+irZkPCMbAkvRHa8MfsyfGrN78WN0VnTZ/8/Fp/3vDHL08XEVkzYTk8ttFetRgHDrqm8pWDl9UtQXm0cjXxj3o3RFs39PyhF+Et/5pvLfgIWIOwrnY/Oq426eff/OeR6IX1s/9MMAZsTI/fK/5jUh+vP9T/vPK/Xvf41Y8r/oNgjAQ0V5q/7bTHyapXDd01qrcSJvB0l1a0vj2+EefCCeRHC2qK4xeZaraPxX4lNLqFBX0AAKBVq29KMovubgU05xZBGQAAtKnZsKxzDXW+IbA+Xfl+KAAAAC2yGSdCOwbWweQLAACQiGYryyfuSxj3AiyHoAwAABJiE5b18bmGHmAZBGUAAJAY211d7rg3PgDdFOAyTl74oLwrAAAACbFqwwj+kvv1oHHgIgRlAACQKNuwrBtJ9OSG0L+MeQjKAAAgYbZhWYU5ucxfxnkEZQAAkDj7sKwOqn0W/OErOo+boAwAABJnu8DvrJ/cUx/PHwi6jakXAAAgE3HDsrrt9v1/9Z6gmwjKAAAgI3HaME77Ig/9/7KNcRc5eURQBgAAOYlfWVY33ZZsynthS+yuOPJB+ZYPykMBAADISDthWRGYu2IkG3LjeCoKAABAVuK3YUzpDObP9QxmWjLKNfSv8TWCMgAAyFV7leUpKsxl0tFwr6uHAgAAkLH2w/IUUzJKobs1PqpnawMAAGQunbCsbrs9/x09FuSK/mQAAFCU9nqWZ9GxYuz0lydtu6A/GQAAFCatyvLUbTfwMf65D859QeqOfFC+L6+rtwIAAFCYNMOyuuv6PoS9JzAnbSgbPihTTQYAAIVKNyxP/eSe+irzA0FKjo63rX4qAAAABUurZ3mWMH7svo/1I0H7Knnrq8nXCMoAAKAL0q8sT2lbxlie+18NBG0Y+WryfbasBgAAXZJPWJ667R4ej5fbEsSgLRfP5Is8rXddBAAA6JD8wrLSKvMX2WMTE3Ms4AMAAJ2WZ1ie2nG7dZWZiRlNGx4v4BsKAABAh+Udlqd057+erzITmtdFSAYAADiljLCsaM1YByEZAABghnLC8hSheRmEZAAAgAuUF5anpqG5J9dpzzhDZyVP5BkhGQAA4GLlhuWpm25LNuUmCwEZAQcAALCs8sPyabfdwP/vbodaNDQUH9JqAQAAsJpuheWpabVZ6tA8kPIMpSfv5E/Zp4oMAACwulw3JRn4aul2/Wvtv11n04ywjfbA/3t+9P/OgeS5M6AG4rf+44N89p8JyAAAAI3ILyzfcU98qH341T/TwNyTR43sNKetGlVddf5B0q06h/YKrR6P/WdaLAAAAEzkFZZnBeUTI9mQG41uzaztGld8BXvDf7i/p2psS1wajEcSwvGvMpGhHFSHAgAAAHP5hGXd2lrk+SVf9cwHyYdi/71s+9DaPw7R2rahVegt/9PcWmHixpH//+mkilAtFvndh+KRfPEfm/73TYZ/AAAALCWPsKwV3qvycYEgOvJh+XtJgfZCX+QPH47pLQYAAEjaFcnBVXmwYMV2ka+Jg4owAABA9nqSOq3QOtlb8Kvp5QUAAEBj0g/LY3m8xFcTlgEAANCYtMNyWNS3u/DXO3khAAAAQEPSXeC3+KK+KR2pdkMAAACAhqRbWb4qj5caw+bkZwEAAAAalGZY1vaL+ZuPzLLPLnYAAABoWnptGDr9YiLvl6oqb8j3jGoDAABA09KqLGuf8rJBWdsvCMoAAAAwkFZY3pQnS24XrdtCPxUAAADAQDph+Y7Tecq7spyf2TIaAAAAVtLY7lqD8uK79AUTeSavq30BAAAAjLQflu+4J0tOvlAjGS8ZrgEAAIAltTcNQxfzbcob/6uBLIvpFwAAAIignZ7lu25Q7863SlB28oigDAAAgBjitmGELawfy3jptotAx8S9qph+AQAAgChO2jC02juRH30g3RbtCRb5IJ/lbSPTJkJIfnDcm7wlq3DywgflXQEAAAAiCWH5omkUlQ/MTt7JphzKL9WhLEoD8rc+eI/lnv5OVg3JwaEcVNcEAAAAiKiqt5cey6cFv16rzIf+/6Wh+Xcfokdn/m19/8++87/aPv5owqGvcN9gnjIAAABiu+KD8uMlvl6rwwMfiAcz/9RJs7Sq/ZfcJygDAACgDVd8IB00HnKbEDYdWW0hIAAAANCAng/KfUmNjocjKAMAAKBlPV9ZHkk6Rv7jGuPhAAAAkALdlOSFpEDbLj77oHywxMQNAAAAwFAYHbfjdDe9pqZXLGt4vNnIUAAAAICEnGxKctvt+d8tMxljXYRkAAAAJK366ndh5vLA/+qB2FSaj/x/cVi3XBCSAQAAkLhq7p9ocHZys94CW+bMVV5MCMi6C2BT22cDAAAAEVQLf+VtN5ANX22e1KPmfhDdoKTyHyej5zQUhx3+nPwmPRn5rx2yYA8AAAC5+n+6/9PrYFlURwAAAABJRU5ErkJggg==" alt="Even" class="h-7 w-auto" />
+        </button>
+        <span class="h-6 w-px bg-slate-200 dark:bg-slate-700"></span>
+        <div>
+          <div class="text-sm font-semibold text-slate-800 dark:text-slate-100 leading-none">RFQ Sales Command Center</div>
+          <div class="text-[10px] font-medium uppercase tracking-[0.18em] text-slate-400 dark:text-slate-500 mt-1">Enterprise Benefits Pipeline</div>
+        </div>
+      </div>
+      <div class="flex items-center gap-2">
+        <span id="dataBadge" class="inline-flex items-center gap-1.5 rounded-full border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 text-[11px] font-medium px-3 py-1">
+          <span class="h-1.5 w-1.5 rounded-full bg-amber-500"></span> Sample data — sheet not connected
+        </span>
+        <span id="asOf" class="text-[11px] text-slate-400 dark:text-slate-500 font-medium"></span>
+        <button id="themeToggle" title="Toggle light / dark" class="h-8 w-8 grid place-items-center rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"></button>
+      </div>
+    </div>
+
+    <!-- ================= MAIN TABS ================= -->
+    <nav class="max-w-[1400px] mx-auto px-5 flex gap-1 overflow-x-auto">
+      <button data-tab="pipeline" class="tabbtn px-3.5 py-2.5 text-sm font-medium border-b-2 border-[#0055ff] text-[#0055ff]">Sales Pipeline</button>
+      <button data-tab="mydeals" class="tabbtn px-3.5 py-2.5 text-sm font-medium border-b-2 border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-100">My Deals</button>
+      <button data-tab="analytics" class="tabbtn px-3.5 py-2.5 text-sm font-medium border-b-2 border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-100">Leadership Analytics</button>
+      <button data-tab="newrfq" class="tabbtn px-3.5 py-2.5 text-sm font-medium border-b-2 border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-100">New RFQ Entry</button>
+    </nav>
+  </header>
+
+  <main class="max-w-[1400px] mx-auto px-5 py-6">
+
+    <!-- ================= VIEW: PIPELINE (Sales Executive) ================= -->
+    <section data-panel="pipeline" class="active animate-fadein">
+
+      <!-- Filter bar -->
+      <div class="flex flex-wrap items-center gap-2 mb-4">
+        <div class="relative msel" id="mselOwner">
+          <button class="msel-btn px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800">Deal Owner <span class="msel-count text-slate-400"></span></button>
+          <div class="msel-panel absolute z-30 mt-1 w-56 max-h-64 overflow-y-auto rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-lg p-2"></div>
+        </div>
+        <div class="relative msel" id="mselSource">
+          <button class="msel-btn px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800">Deal Source <span class="msel-count text-slate-400"></span></button>
+          <div class="msel-panel absolute z-30 mt-1 w-56 max-h-64 overflow-y-auto rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-lg p-2"></div>
+        </div>
+        <div class="relative msel" id="mselType">
+          <button class="msel-btn px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800">Business Type <span class="msel-count text-slate-400"></span></button>
+          <div class="msel-panel absolute z-30 mt-1 w-56 max-h-64 overflow-y-auto rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-lg p-2"></div>
+        </div>
+        <div class="relative msel" id="mselCity">
+          <button class="msel-btn px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800">City <span class="msel-count text-slate-400"></span></button>
+          <div class="msel-panel absolute z-30 mt-1 w-56 max-h-64 overflow-y-auto rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-lg p-2"></div>
+        </div>
+        <div class="relative msel" id="mselClosureMonth">
+          <button class="msel-btn px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800">Expected Closure Month <span class="msel-count text-slate-400"></span></button>
+          <div class="msel-panel absolute z-30 mt-1 w-56 max-h-64 overflow-y-auto rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-lg p-2"></div>
+        </div>
+        <button id="activePipelineToggle" class="px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800">Active pipeline</button>
+        <button id="clearFilters" class="px-3 py-1.5 text-xs font-medium rounded-lg text-[#0055ff] hover:underline">Clear filters</button>
+        <div class="ml-auto relative">
+          <input id="searchBox" type="text" placeholder="Search company or broker POC…" class="w-64 px-3 py-1.5 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900" />
+        </div>
+      </div>
+
+      <!-- Active revenue pipeline summary — always reflects the current filter bar selection, excluding Closed Lost by definition -->
+      <div id="activePipelineSummary" class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3 mb-4"></div>
+
+      <!-- Kanban / Table sub-toggle -->
+      <div class="flex items-center justify-between mb-3 flex-wrap gap-3">
+        <div class="inline-flex rounded-lg border border-slate-200 dark:border-slate-700 p-0.5 bg-white dark:bg-slate-900">
+          <button data-subtab="kanban" class="subtabbtn px-3 py-1.5 text-xs font-medium rounded-md bg-[#0055ff] text-white">Pipeline Board</button>
+          <button data-subtab="table" class="subtabbtn px-3 py-1.5 text-xs font-medium rounded-md text-slate-500 dark:text-slate-400">Data Table</button>
+        </div>
+        <div id="resultCount" class="text-[11px] text-slate-400 dark:text-slate-500 font-medium"></div>
+      </div>
+
+      <!-- Kanban sub-panel -->
+      <div data-subpanel="kanban" class="active">
+        <div id="kanbanBoard" class="flex gap-3 overflow-x-auto pb-2"></div>
+      </div>
+
+      <!-- Table sub-panel -->
+      <div data-subpanel="table">
+        <div class="overflow-x-auto max-h-[70vh] overflow-y-auto rounded-xl border border-slate-200 dark:border-slate-800">
+          <table class="min-w-full text-xs">
+            <thead>
+              <tr>
+                <th class="text-left px-3 py-2 font-medium text-slate-500 dark:text-slate-400" data-key="company">Company</th>
+                <th class="text-left px-3 py-2 font-medium text-slate-500 dark:text-slate-400" data-key="city">City</th>
+                <th class="text-left px-3 py-2 font-medium text-slate-500 dark:text-slate-400" data-key="businessType">Type</th>
+                <th class="text-left px-3 py-2 font-medium text-slate-500 dark:text-slate-400" data-key="dealSource">Source / Broker</th>
+                <th class="text-left px-3 py-2 font-medium text-slate-500 dark:text-slate-400" data-key="dealOwner">Owner</th>
+                <th class="text-right px-3 py-2 font-medium text-slate-500 dark:text-slate-400" data-key="expectedPremium">Expected Premium</th>
+                <th class="text-right px-3 py-2 font-medium text-slate-500 dark:text-slate-400" data-key="finalClosureAmount">Closure Amount</th>
+                <th class="text-left px-3 py-2 font-medium text-slate-500 dark:text-slate-400" data-key="dealStatus">Status</th>
+                <th class="text-left px-3 py-2 font-medium text-slate-500 dark:text-slate-400" data-key="temperature">Temperature</th>
+                <th class="text-left px-3 py-2 font-medium text-slate-500 dark:text-slate-400" data-key="dateOfRFQ">RFQ Date</th>
+                <th class="text-left px-3 py-2 font-medium text-slate-500 dark:text-slate-400" data-key="closureDate">Closure Date</th>
+                <th class="text-center px-3 py-2 font-medium text-slate-500 dark:text-slate-400">Details</th>
+                <th class="text-center px-3 py-2 font-medium text-slate-500 dark:text-slate-400">Edit</th>
+              </tr>
+              <tr id="tableFilterRow" class="border-t border-slate-100 dark:border-slate-800">
+                <td class="px-2 py-1.5"><input id="colf_company" type="text" placeholder="Filter…" class="w-full px-2 py-1 text-[11px] rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950" /></td>
+                <td class="px-2 py-1.5"><input id="colf_city" type="text" placeholder="Filter…" class="w-full px-2 py-1 text-[11px] rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950" /></td>
+                <td class="px-2 py-1.5">
+                  <div class="relative msel" id="colfType">
+                    <button class="msel-btn w-full px-2 py-1 text-[11px] text-left rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950">Type <span class="msel-count text-slate-400"></span></button>
+                    <div class="msel-panel absolute z-30 mt-1 w-44 max-h-56 overflow-y-auto rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-lg p-2"></div>
+                  </div>
+                </td>
+                <td class="px-2 py-1.5"><input id="colf_source" type="text" placeholder="Filter…" class="w-full px-2 py-1 text-[11px] rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950" /></td>
+                <td class="px-2 py-1.5">
+                  <div class="relative msel" id="colfOwner">
+                    <button class="msel-btn w-full px-2 py-1 text-[11px] text-left rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950">Owner <span class="msel-count text-slate-400"></span></button>
+                    <div class="msel-panel absolute z-30 mt-1 w-44 max-h-56 overflow-y-auto rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-lg p-2"></div>
+                  </div>
+                </td>
+                <td class="px-2 py-1.5"><div class="flex gap-1"><input id="colf_expMin" type="number" placeholder="Min" class="w-1/2 px-1.5 py-1 text-[11px] rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950" /><input id="colf_expMax" type="number" placeholder="Max" class="w-1/2 px-1.5 py-1 text-[11px] rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950" /></div></td>
+                <td class="px-2 py-1.5"><div class="flex gap-1"><input id="colf_closeMin" type="number" placeholder="Min" class="w-1/2 px-1.5 py-1 text-[11px] rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950" /><input id="colf_closeMax" type="number" placeholder="Max" class="w-1/2 px-1.5 py-1 text-[11px] rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950" /></div></td>
+                <td class="px-2 py-1.5">
+                  <div class="relative msel" id="colfStatus">
+                    <button class="msel-btn w-full px-2 py-1 text-[11px] text-left rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950">Status <span class="msel-count text-slate-400"></span></button>
+                    <div class="msel-panel absolute z-30 mt-1 w-44 max-h-56 overflow-y-auto rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-lg p-2"></div>
+                  </div>
+                </td>
+                <td class="px-2 py-1.5">
+                  <div class="relative msel" id="colfTemp">
+                    <button class="msel-btn w-full px-2 py-1 text-[11px] text-left rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950">Temp <span class="msel-count text-slate-400"></span></button>
+                    <div class="msel-panel absolute z-30 mt-1 w-36 max-h-56 overflow-y-auto rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-lg p-2"></div>
+                  </div>
+                </td>
+                <td class="px-2 py-1.5"><input id="colf_dateOfRFQ" type="text" placeholder="e.g. Aug 2026" class="w-full px-2 py-1 text-[11px] rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950" /></td>
+                <td class="px-2 py-1.5"><input id="colf_closureDate" type="text" placeholder="e.g. Aug 2026" class="w-full px-2 py-1 text-[11px] rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950" /></td>
+                <td class="px-2 py-1.5"></td>
+                <td class="px-2 py-1.5"></td>
+                <td class="px-2 py-1.5"><button id="colfClear" class="w-full text-[10px] text-[#0055ff] hover:underline">Clear</button></td>
+              </tr>
+            </thead>
+            <tbody id="pipelineTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= VIEW: MY DEALS (per-rep daily view) ================= -->
+    <section data-panel="mydeals">
+      <div class="flex items-center justify-between mb-4 flex-wrap gap-3">
+        <h1 class="text-lg font-semibold">My Deals</h1>
+        <div id="myDealsOwnerPicker" class="inline-flex rounded-lg border border-slate-200 dark:border-slate-700 p-0.5 bg-white dark:bg-slate-900"></div>
+      </div>
+      <div id="myDealsEmpty" class="text-sm text-slate-400 dark:text-slate-500 py-16 text-center">Pick your name above to see your deals.</div>
+      <div id="myDealsContent" class="hidden">
+        <div id="myDealsKpis" class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3 mb-5"></div>
+
+        <div class="mb-5">
+          <div class="flex items-center justify-between mb-2">
+            <div class="text-sm font-semibold">Upcoming Closures</div>
+            <div class="inline-flex rounded-lg border border-slate-200 dark:border-slate-700 p-0.5 bg-white dark:bg-slate-900">
+              <button data-mdperiod="month" class="mdperiodbtn px-2.5 py-1 text-[11px] font-medium rounded-md bg-[#0055ff] text-white">Monthly</button>
+              <button data-mdperiod="quarter" class="mdperiodbtn px-2.5 py-1 text-[11px] font-medium rounded-md text-slate-500 dark:text-slate-400">Quarterly</button>
+            </div>
+          </div>
+          <div class="text-[11px] text-slate-400 dark:text-slate-500 mb-2">Open deals (not yet closed), grouped by Expected Closure period — current month onward only</div>
+          <div class="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800">
+            <table class="min-w-full text-xs">
+              <thead><tr>
+                <th class="text-left px-3 py-2 font-medium text-slate-500 dark:text-slate-400">Period</th>
+                <th class="text-right px-3 py-2 font-medium text-slate-500 dark:text-slate-400"># Deals</th>
+                <th class="text-right px-3 py-2 font-medium text-slate-500 dark:text-slate-400">Expected Revenue</th>
+              </tr></thead>
+              <tbody id="myDealsUpcomingBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="mb-5">
+          <div class="flex items-center justify-between mb-2">
+            <div class="text-sm font-semibold">Lapsed Pipeline</div>
+            <div id="myDealsLapsedTotal" class="text-[11px] text-slate-400 dark:text-slate-500"></div>
+          </div>
+          <div class="text-[11px] text-slate-400 dark:text-slate-500 mb-2">Still-open deals whose expected closure month has already passed — dead pipeline until re-worked or updated</div>
+          <div class="overflow-x-auto max-h-[40vh] overflow-y-auto rounded-xl border border-amber-200 dark:border-amber-900">
+            <table class="min-w-full text-xs">
+              <thead><tr>
+                <th class="text-left px-3 py-2 font-medium text-slate-500 dark:text-slate-400">Company</th>
+                <th class="text-right px-3 py-2 font-medium text-slate-500 dark:text-slate-400">Expected Premium</th>
+                <th class="text-left px-3 py-2 font-medium text-slate-500 dark:text-slate-400">Was Expected</th>
+                <th class="text-left px-3 py-2 font-medium text-slate-500 dark:text-slate-400">Status</th>
+                <th class="text-center px-3 py-2 font-medium text-slate-500 dark:text-slate-400">Edit</th>
+              </tr></thead>
+              <tbody id="myDealsLapsedBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="mb-5">
+          <div class="flex items-center justify-between mb-2">
+            <div class="text-sm font-semibold">Closed Lost Report</div>
+            <div id="myDealsLostTotal" class="text-[11px] text-slate-400 dark:text-slate-500"></div>
+          </div>
+          <div class="overflow-x-auto max-h-[40vh] overflow-y-auto rounded-xl border border-slate-200 dark:border-slate-800">
+            <table class="min-w-full text-xs">
+              <thead><tr>
+                <th class="text-left px-3 py-2 font-medium text-slate-500 dark:text-slate-400">Company</th>
+                <th class="text-right px-3 py-2 font-medium text-slate-500 dark:text-slate-400">Expected Premium</th>
+                <th class="text-left px-3 py-2 font-medium text-slate-500 dark:text-slate-400">Closure Date</th>
+                <th class="text-left px-3 py-2 font-medium text-slate-500 dark:text-slate-400">Reason / Remarks</th>
+              </tr></thead>
+              <tbody id="myDealsLostBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="text-sm font-semibold mb-2">All my deals</div>
+        <div class="overflow-x-auto max-h-[60vh] overflow-y-auto rounded-xl border border-slate-200 dark:border-slate-800">
+          <table class="min-w-full text-xs">
+            <thead>
+              <tr>
+                <th class="text-left px-3 py-2 font-medium text-slate-500 dark:text-slate-400">Company</th>
+                <th class="text-left px-3 py-2 font-medium text-slate-500 dark:text-slate-400">Type</th>
+                <th class="text-left px-3 py-2 font-medium text-slate-500 dark:text-slate-400">Source / Broker</th>
+                <th class="text-right px-3 py-2 font-medium text-slate-500 dark:text-slate-400">Expected Premium</th>
+                <th class="text-left px-3 py-2 font-medium text-slate-500 dark:text-slate-400">Status</th>
+                <th class="text-left px-3 py-2 font-medium text-slate-500 dark:text-slate-400">RFQ Date</th>
+                <th class="text-center px-3 py-2 font-medium text-slate-500 dark:text-slate-400">Details</th>
+                <th class="text-center px-3 py-2 font-medium text-slate-500 dark:text-slate-400">Edit</th>
+              </tr>
+            </thead>
+            <tbody id="myDealsTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= VIEW: NEW RFQ ENTRY ================= -->
+    <section data-panel="newrfq">
+      <h1 class="text-lg font-semibold mb-1">New RFQ Entry</h1>
+      <div class="text-[11px] text-slate-400 dark:text-slate-500 mb-4">Submits directly to the sheet as a new row.</div>
+      <form id="newRfqForm" class="max-w-3xl rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5">
+        <div id="newRfqFields" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+        <div class="flex items-center gap-3 mt-5 pt-4 border-t border-slate-100 dark:border-slate-800">
+          <button type="submit" id="newRfqSubmit" class="px-4 py-2 text-xs font-medium rounded-lg bg-[#0055ff] text-white hover:bg-blue-700">Submit RFQ</button>
+          <button type="button" id="newRfqReset" class="px-4 py-2 text-xs font-medium rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800">Clear form</button>
+          <span id="newRfqStatus" class="text-[11px] text-slate-400 dark:text-slate-500"></span>
+        </div>
+      </form>
+    </section>
+
+    <!-- ================= VIEW: LEADERSHIP ANALYTICS ================= -->
+    <section data-panel="analytics">
+      <h1 class="text-lg font-semibold mb-4">Leadership Analytics</h1>
+
+      <!-- KPI cards -->
+      <div id="kpiGrid" class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3 mb-6"></div>
+
+      <!-- Charts -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div class="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
+          <div class="text-sm font-semibold mb-1">Broker / Deal Source Performance</div>
+          <div class="text-[11px] text-slate-400 dark:text-slate-500 mb-3">Closed revenue (bars) vs. win rate % (line), top partners</div>
+          <div class="h-72"><canvas id="chartBroker"></canvas></div>
+        </div>
+        <div class="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
+          <div class="text-sm font-semibold mb-1">Pipeline Velocity & Monthly Revenue</div>
+          <div class="text-[11px] text-slate-400 dark:text-slate-500 mb-3">RFQ volume (bars) vs. Closed Won premium (line), by month</div>
+          <div class="h-72"><canvas id="chartTrend"></canvas></div>
+        </div>
+        <div class="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
+          <div class="text-sm font-semibold mb-1">Business Split</div>
+          <div class="text-[11px] text-slate-400 dark:text-slate-500 mb-3">Closed Won revenue share — Fresh vs. Rollover vs. Renewal</div>
+          <div class="h-72"><canvas id="chartSplit"></canvas></div>
+        </div>
+        <div class="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
+          <div class="text-sm font-semibold mb-1">Sales Rep Leaderboard</div>
+          <div class="text-[11px] text-slate-400 dark:text-slate-500 mb-3">Closed revenue (bars) vs. conversion rate % (line)</div>
+          <div class="h-72"><canvas id="chartLeaderboard"></canvas></div>
+        </div>
+      </div>
+
+      <h2 class="text-sm font-semibold text-slate-500 dark:text-slate-400 mt-8 mb-3">Reports</h2>
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div class="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
+          <div class="flex items-center justify-between mb-1">
+            <div class="text-sm font-semibold">Expected Revenue — by Period</div>
+            <div class="inline-flex rounded-lg border border-slate-200 dark:border-slate-700 p-0.5 bg-white dark:bg-slate-900">
+              <button data-period="month" class="periodbtn px-2.5 py-1 text-[11px] font-medium rounded-md bg-[#0055ff] text-white">Monthly</button>
+              <button data-period="quarter" class="periodbtn px-2.5 py-1 text-[11px] font-medium rounded-md text-slate-500 dark:text-slate-400">Quarterly</button>
+            </div>
+          </div>
+          <div class="text-[11px] text-slate-400 dark:text-slate-500 mb-3">Total expected premium of RFQs raised each period</div>
+          <div class="h-72"><canvas id="chartExpectedByPeriod"></canvas></div>
+        </div>
+        <div class="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
+          <div class="text-sm font-semibold mb-1">Expected vs. Closed — Month wise</div>
+          <div class="text-[11px] text-slate-400 dark:text-slate-500 mb-3">Per RFQ-month cohort: expected premium vs. what actually closed won</div>
+          <div class="h-72"><canvas id="chartExpectedVsClosedMonth"></canvas></div>
+        </div>
+        <div class="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 lg:col-span-2">
+          <div class="text-sm font-semibold mb-1">Expected vs. Closed — Sales Person wise</div>
+          <div class="text-[11px] text-slate-400 dark:text-slate-500 mb-3">Total expected premium vs. total closed won premium, per rep</div>
+          <div class="h-72"><canvas id="chartExpectedVsClosedOwner"></canvas></div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="max-w-[1400px] mx-auto px-5 py-6 text-[11px] text-slate-400 dark:text-slate-500">
+    Even · RFQ Sales Command Center — Sample data only until the sheet feed is connected.
+  </footer>
+
+  <!-- Deal details / edit modal -->
+  <div id="modalBackdrop" class="modal-backdrop fixed inset-0 z-40 bg-slate-900/40 backdrop-blur-sm items-center justify-center p-4">
+    <div class="animate-fadein w-full max-w-2xl rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xl max-h-[88vh] flex flex-col">
+      <div class="flex items-start justify-between px-5 py-4 border-b border-slate-100 dark:border-slate-800 flex-shrink-0">
+        <div>
+          <div id="modalCompany" class="text-sm font-semibold"></div>
+          <div id="modalSub" class="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5"></div>
+        </div>
+        <button id="modalClose" class="text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 text-lg leading-none">✕</button>
+      </div>
+      <div id="modalBody" class="px-5 py-4 text-xs space-y-4 overflow-y-auto"></div>
+      <div id="modalFooter" class="hidden px-5 py-3 border-t border-slate-100 dark:border-slate-800 flex-shrink-0 flex items-center gap-3">
+        <button id="modalSave" class="px-4 py-2 text-xs font-medium rounded-lg bg-[#0055ff] text-white hover:bg-blue-700">Save changes</button>
+        <button id="modalCancelEdit" class="px-4 py-2 text-xs font-medium rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800">Cancel</button>
+        <span id="modalSaveStatus" class="text-[11px] text-slate-400 dark:text-slate-500"></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast container -->
+  <div id="toastHost" class="fixed bottom-4 right-4 z-50 flex flex-col gap-2"></div>
+</div>
+
+<script>
+(function(){
+
+  /* =====================================================================
+     0. CONFIG
+     ===================================================================== */
+  var APPS_SCRIPT_URL = "https://script.google.com/a/macros/even.in/s/AKfycbwfWzEl8HBY3PCB9rTAqFEtMKSMic24739GscERtTAwR1GLS8I6qVQvOrk0DGpAavCDHg/exec";
+  // Kanban columns, in the fixed order requested — these are driven by the
+  // sheet's stage/sub-status text (Quote shared, Negotiation, etc.), NOT by
+  // the Hot/Warm/Cold temperature, which is shown as a badge inside each
+  // card instead (see TEMP_COLORS below).
+  var STATUS_ORDER = ['Quote shared', 'Awaiting update from POC', 'Negotiation', 'Queried / Demo / Client Discussion', 'On Hold', 'Not Working', 'Closed Lost', 'Closed Won'];
+  // "Open" pipeline = every stage except the two closed ones. Used wherever
+  // the dashboard needs "still active" regardless of temperature.
+  var OPEN_STAGES = STATUS_ORDER.filter(function(s){ return s !== 'Closed Won' && s !== 'Closed Lost'; });
+  var STATUS_COLORS = {
+    'Quote shared':                       { dot:'bg-sky-500',     chip:'bg-sky-50 text-sky-700 dark:bg-sky-950/40 dark:text-sky-300' },
+    'Awaiting update from POC':           { dot:'bg-violet-500',  chip:'bg-violet-50 text-violet-700 dark:bg-violet-950/40 dark:text-violet-300' },
+    'Negotiation':                        { dot:'bg-indigo-500',  chip:'bg-indigo-50 text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300' },
+    'Queried / Demo / Client Discussion':  { dot:'bg-cyan-500',    chip:'bg-cyan-50 text-cyan-700 dark:bg-cyan-950/40 dark:text-cyan-300' },
+    'On Hold':                            { dot:'bg-amber-500',   chip:'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300' },
+    'Not Working':                        { dot:'bg-slate-400',   chip:'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300' },
+    'Closed Lost':                        { dot:'bg-rose-500',    chip:'bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300' },
+    'Closed Won':                         { dot:'bg-emerald-500', chip:'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300' }
+  };
+  // Temperature tag shown inside each kanban card, not as a column.
+  var TEMP_COLORS = {
+    'Hot':  'bg-orange-50 text-orange-700 dark:bg-orange-950/40 dark:text-orange-300',
+    'Warm': 'bg-yellow-50 text-yellow-700 dark:bg-yellow-950/40 dark:text-yellow-300',
+    'Cold': 'bg-sky-50 text-sky-700 dark:bg-sky-950/40 dark:text-sky-300'
+  };
+  // This dashboard is scoped to just these three reps' books of business —
+  // everyone else's deals are excluded before anything else renders.
+  var ALLOWED_OWNERS = ['Jayshree', 'Akash Kiran', 'Rishav'];
+  var MONTH_NAMES = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
+  var MONTH_ABBR = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+  /* =====================================================================
+     1. NORMALIZATION LAYER — resilient parsing of raw sheet values
+     ===================================================================== */
+
+  // Sanitizes currency strings like "₹316,208.00", "7,53,200", "₹0.00", "", null → float
+  function parseCurrency(v){
+    if (v === null || v === undefined) return 0;
+    if (typeof v === 'number') return isFinite(v) ? v : 0;
+    var s = String(v).trim();
+    if (!s) return 0;
+    s = s.replace(/[₹Rs.]*\s*/gi, '').replace(/,/g, '').trim();
+    // strip any leftover non-numeric characters except . and -
+    s = s.replace(/[^0-9.\-]/g, '');
+    var n = parseFloat(s);
+    return isFinite(n) ? n : 0;
+  }
+
+  // Parses DD/MM/YYYY, DD MMM YYYY, MMM-YYYY, or falls back to native Date parsing.
+  // Returns a Date object or null if unparseable.
+  function parseDateFlexible(v){
+    if (!v) return null;
+    if (v instanceof Date) return isNaN(v.getTime()) ? null : v;
+    var s = String(v).trim();
+    if (!s) return null;
+
+    // DD/MM/YYYY or D/M/YYYY
+    var m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    if (m) {
+      var d = new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1]));
+      return isNaN(d.getTime()) ? null : d;
+    }
+
+    // DD MMM YYYY, e.g. "12 Jan 2025"
+    m = s.match(/^(\d{1,2})\s+([A-Za-z]{3,})\s*,?\s*(\d{4})$/);
+    if (m) {
+      var mi = MONTH_NAMES.indexOf(m[2].slice(0,3).toLowerCase());
+      if (mi > -1) {
+        var d2 = new Date(Number(m[3]), mi, Number(m[1]));
+        return isNaN(d2.getTime()) ? null : d2;
+      }
+    }
+
+    // MMM-YYYY or MMM YYYY, e.g. "Jan-2025" / "Jan 2025"
+    m = s.match(/^([A-Za-z]{3,})[-\s](\d{4})$/);
+    if (m) {
+      var mi2 = MONTH_NAMES.indexOf(m[1].slice(0,3).toLowerCase());
+      if (mi2 > -1) {
+        var d3 = new Date(Number(m[2]), mi2, 1);
+        return isNaN(d3.getTime()) ? null : d3;
+      }
+    }
+
+    // Fallback to native parsing (handles ISO strings, "Jan 12 2025", etc.)
+    var native = new Date(s);
+    return isNaN(native.getTime()) ? null : native;
+  }
+
+  function cleanText(v){
+    if (v === null || v === undefined) return '';
+    return String(v).trim();
+  }
+
+  // Columns like "Expected Closure Month" are formatted to *display* as
+  // "Aug-2026" in the sheet, but the underlying cell is a real date. Apps
+  // Script's doGet returns that as a Date, which JSON.stringify turns into
+  // an ISO timestamp like "2025-06-30T18:30:00.000Z" — the sheet's local
+  // (IST) midnight, expressed in UTC. Reading that with the *browser's*
+  // local timezone would silently give the wrong month for anyone viewing
+  // the dashboard outside IST, so this shifts by the sheet's fixed +5:30
+  // offset before reading the month/year, regardless of viewer timezone.
+  function sheetDateToMonthLabel(v){
+    var d = (v instanceof Date) ? v : new Date(v);
+    if (isNaN(d.getTime())) return null;
+    var ist = new Date(d.getTime() + (5.5 * 60 * 60 * 1000));
+    return MONTH_ABBR[ist.getUTCMonth()] + '-' + ist.getUTCFullYear();
+  }
+
+  // Normalizes a month-only column that may arrive either as a clean
+  // "Mon-YYYY" text label (the sheet's usual convention) or as a real Date
+  // value serialized to an ISO timestamp (see sheetDateToMonthLabel above).
+  function normalizeMonthLabel(v){
+    if (v instanceof Date) return sheetDateToMonthLabel(v) || '';
+    var s = cleanText(v);
+    if (!s) return '';
+    if (/^\d{4}-\d{2}-\d{2}T/.test(s)) return sheetDateToMonthLabel(s) || s;
+    return s;
+  }
+
+  // Some sheet headers vary between environments (e.g. a trailing space on
+  // "Company Name ", or a literal line-break inside "Expected Premium \n
+  // (without GST)"). pick() tries each candidate key in order and returns
+  // the first non-empty value, so the dashboard tolerates either form
+  // instead of silently reading a mistyped key as blank.
+  function pick(raw, keys){
+    for (var i = 0; i < keys.length; i++){
+      var v = raw[keys[i]];
+      if (v !== undefined && v !== null && String(v).trim() !== '') return v;
+    }
+    return '';
+  }
+
+  // "Brokerage" in this sheet is a rate ("15.00%"), not a rupee amount.
+  function parsePercent(v){
+    var s = cleanText(v).replace('%', '').trim();
+    if (!s) return null;
+    var n = parseFloat(s);
+    return isFinite(n) ? n : null;
+  }
+
+  function parseInteger(v){
+    if (v === null || v === undefined || v === '') return 0;
+    var n = parseInt(String(v).replace(/,/g, '').trim(), 10);
+    return isFinite(n) ? n : 0;
+  }
+
+  // The sheet has two status-ish columns whose header labels have already
+  // been swapped/renamed once (the field literally called "Deal Status"
+  // was found holding stage text like "Closed won"/"Quote shared", while
+  // "Sub-Status" held the Hot/Warm/Cold temperature). Rather than trust
+  // either header name, this reads both raw values and classifies them by
+  // CONTENT — whichever one is exactly "hot"/"warm"/"cold" is the
+  // temperature, the other is the stage/outcome — so the dashboard keeps
+  // working even if the columns get reordered or renamed again.
+  var TEMP_WORDS = ['hot', 'warm', 'cold'];
+  function classifyStatusFields(raw){
+    var a = cleanText(pick(raw, ['Deal Status']));
+    var b = cleanText(pick(raw, ['Sub-Status', 'Sub-status', 'Sub Status']));
+    var aIsTemp = TEMP_WORDS.indexOf(a.toLowerCase()) > -1;
+    var bIsTemp = TEMP_WORDS.indexOf(b.toLowerCase()) > -1;
+    if (aIsTemp && !bIsTemp) return { temperature: a, stage: b };
+    if (bIsTemp && !aIsTemp) return { temperature: b, stage: a };
+    return { temperature: '', stage: a || b }; // ambiguous — treat whichever has content as the stage
+  }
+
+  // Maps free-text business type into a canonical bucket.
+  function normalizeBusinessType(v){
+    var s = cleanText(v).toLowerCase();
+    if (/fresh/.test(s)) return 'Fresh';
+    if (/roll\s*over/.test(s)) return 'Rollover';
+    if (/renewal/.test(s)) return 'Renewal';
+    return s ? cleanText(v) : 'Unknown';
+  }
+
+  // Normalizes the raw stage/sub-status text to the fixed kanban vocabulary
+  // (case-insensitive match against STATUS_ORDER, plus a couple of legacy
+  // single-word shorthands). Anything unrecognized keeps its own raw text
+  // as a dynamic extra column rather than being silently dropped.
+  function normalizeStageLabel(v){
+    var s = cleanText(v);
+    if (!s) return 'Not Working';
+    var low = s.toLowerCase();
+    for (var i = 0; i < STATUS_ORDER.length; i++){
+      if (STATUS_ORDER[i].toLowerCase() === low) return STATUS_ORDER[i];
+    }
+    if (low === 'won' || /closed\s*won/.test(low)) return 'Closed Won';
+    if (low === 'lost' || /closed\s*lost/.test(low)) return 'Closed Lost';
+    if (/not\s*working/.test(low)) return 'Not Working';
+    if (/on\s*hold/.test(low)) return 'On Hold';
+    return s;
+  }
+
+  // Normalizes the raw temperature text to Hot/Warm/Cold, or '' if it's
+  // blank or something else (e.g. the stray legacy "Lost" value) — no
+  // badge is shown in that case.
+  function normalizeTemperature(v){
+    var low = cleanText(v).toLowerCase();
+    if (low === 'hot') return 'Hot';
+    if (low === 'warm') return 'Warm';
+    if (low === 'cold') return 'Cold';
+    return '';
+  }
+
+  function fmtMoney(n){
+    return '₹' + Math.round(n || 0).toLocaleString('en-IN');
+  }
+  function fmtMoneyShort(n){
+    n = n || 0;
+    if (Math.abs(n) >= 10000000) return '₹' + (n/10000000).toFixed(2) + 'Cr';
+    if (Math.abs(n) >= 100000) return '₹' + (n/100000).toFixed(1) + 'L';
+    if (Math.abs(n) >= 1000) return '₹' + (n/1000).toFixed(0) + 'k';
+    return '₹' + Math.round(n);
+  }
+  function fmtDate(d){
+    if (!d) return '—';
+    return d.toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'numeric' });
+  }
+  function monthKey(d){
+    if (!d) return null;
+    return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
+  }
+  function monthLabel(key){
+    if (!key) return 'Unknown';
+    var parts = key.split('-');
+    var d = new Date(Number(parts[0]), Number(parts[1])-1, 1);
+    return d.toLocaleDateString('en-IN', { month:'short', year:'numeric' });
+  }
+
+  // Normalizes one raw sheet row into the shape the dashboard renders from.
+  // Field lookups use pick() with both the "clean" header spelling and the
+  // sheet's actual spelling (trailing spaces / embedded line breaks) so the
+  // same code works against the hand-typed sample data and the live sheet.
+  function normalizeRecord(raw){
+    var expectedPremium = parseCurrency(pick(raw, ['Expected Premium (without GST)', 'Expected Premium \n(without GST)']));
+    var closureAmount = parseCurrency(pick(raw, ['Closure Amount - without GST', 'Closure Amount\n(w/o GST)']));
+    var finalClosureAmount = parseCurrency(pick(raw, ['Final Closure Amount (W/O GST)', 'Final Closure Amount\n(W/O GST)'])) || closureAmount;
+    var dateOfRFQ = parseDateFlexible(raw['Date of RFQ']);
+    var closureDate = parseDateFlexible(raw['Closure Date']);
+    var remarks = cleanText(raw['Remarks']);
+    var statusFields = classifyStatusFields(raw);
+
+    return {
+      _row: raw['_row'],
+      _raw: raw, // kept so edits can be merged back and re-normalized without losing untouched columns
+      sNo: cleanText(raw['S No']),
+      company: cleanText(pick(raw, ['Company Name', 'Company Name '])) || 'Unnamed company',
+      city: cleanText(raw['City']),
+      location: cleanText(raw['Location']), // not present in the live sheet — stays blank there
+      employees: parseInteger(raw['Number of Employees']),
+
+      dateOfRFQ: dateOfRFQ,
+      monthOfRFQ: normalizeMonthLabel(raw['Month of RFQ']),
+      expectedClosureMonth: normalizeMonthLabel(raw['Expected Closure Month']),
+      closureDate: closureDate,
+      closureMonthRID: normalizeMonthLabel(raw['Closure Month / RID']),
+
+      dealSource: cleanText(raw['Deal Source']) || 'Unspecified',
+      source2: cleanText(raw['Source 2']),
+      source3: cleanText(raw['Source 3']),
+      broker: cleanText(raw['Broker']),
+      brokerPOC: cleanText(raw['Broker POC']),
+
+      expectedPremium: expectedPremium,
+      brokeragePct: parsePercent(raw['Brokerage']), // a rate ("15.00%"), not a rupee amount
+      pricingOptions: cleanText(raw['Pricing Given Multiple Options']), // not present in the live sheet — stays blank there
+      closureAmount: closureAmount,
+      finalClosureAmount: finalClosureAmount,
+      extraCollected: parseCurrency(raw['Extra Collected Over Rater']),
+
+      businessType: normalizeBusinessType(raw['Fresh - RollOver - Renewal']),
+      dealOwner: cleanText(raw['Deal Owner']) || 'Unassigned',
+      secondOwner: cleanText(raw['Second Owner']),
+      dealStatus: normalizeStageLabel(statusFields.stage),   // kanban column — Quote shared / Negotiation / Closed Won / etc.
+      stageRaw: statusFields.stage,                           // raw stage text, for the edit form
+      temperature: normalizeTemperature(statusFields.temperature), // Hot / Warm / Cold badge, shown inside the card
+      remarks: remarks
+    };
+  }
+
+  /* =====================================================================
+     2. SAMPLE DATA — deliberately messy formats to exercise the
+        normalization layer, plus generated volume so charts have shape.
+     ===================================================================== */
+  var HAND_ROWS = [
+    { 'S No':1,'Company Name':'Solaris Textiles Pvt Ltd','City':'Mumbai','Location':'Andheri East','Number of Employees':'420','Date of RFQ':'03/01/2025','Month of RFQ':'Jan-2025','Expected Closure Month':'Feb-2025','Closure Date':'21 Feb 2025','Closure Month / RID':'Feb-2025','Deal Source':'Broker','Source 2':'Referral','Source 3':'','Broker':'Nova','Broker POC':'Ritesh Sharma','Expected Premium (without GST)':'₹18,40,000.00','Brokerage':'5.00%','Pricing Given Multiple Options':'Option A: Base plan, ₹4,200/life\nOption B: Enhanced plan w/ maternity, ₹5,100/life\nOption C: Family floater + OPD, ₹6,300/life','Closure Amount - without GST':'17,53,200','Final Closure Amount (W/O GST)':'₹17,53,200.00','Extra Collected Over Rater':'₹0.00','Fresh - RollOver - Renewal':'Fresh','Deal Owner':'Jayshree','Second Owner':'','Deal Status':'Closed Won','Sub-Status':'Cold','Remarks':'Smooth closure, client happy with OPD add-on.' },
+    { 'S No':2,'Company Name':'Kestrel Analytics','City':'Bengaluru','Location':'Whitefield','Number of Employees':'85','Date of RFQ':'14 Jan 2025','Month of RFQ':'Jan-2025','Expected Closure Month':'Mar-2025','Closure Date':'','Closure Month / RID':'','Deal Source':'Direct','Source 2':'Website','Source 3':'','Broker':'','Broker POC':'','Expected Premium (without GST)':'₹6,10,000','Brokerage':'0.00%','Pricing Given Multiple Options':'Single option shared — ₹7,180/life, base + dental.','Closure Amount - without GST':'','Final Closure Amount (W/O GST)':'₹0.00','Extra Collected Over Rater':'','Fresh - RollOver - Renewal':'Fresh','Deal Owner':'Akash Kiran','Second Owner':'','Deal Status':'Awaiting update from POC','Sub-Status':'Hot','Remarks':'Awaiting data from client HR on final headcount.' },
+    { 'S No':3,'Company Name':'Bluepeak Logistics','City':'Pune','Location':'Hinjewadi','Number of Employees':'610','Date of RFQ':'28/01/2025','Month of RFQ':'Jan-2025','Expected Closure Month':'Feb-2025','Closure Date':'','Closure Month / RID':'','Deal Source':'Broker','Source 2':'','Source 3':'','Broker':'Digit','Broker POC':'Meera Nair','Expected Premium (without GST)':'₹24,00,000.00','Brokerage':'5.00%','Pricing Given Multiple Options':'','Closure Amount - without GST':'₹0.00','Final Closure Amount (W/O GST)':'','Extra Collected Over Rater':'','Fresh - RollOver - Renewal':'Renewal','Deal Owner':'Rishav','Second Owner':'','Deal Status':'On Hold','Sub-Status':'Cold','Remarks':'Deal on hold — client froze Q1 budget, revisit in April.' },
+    { 'S No':4,'Company Name':'Northgate Foods','City':'Delhi','Location':'Okhla','Number of Employees':'260','Date of RFQ':'Feb-2025','Month of RFQ':'Feb-2025','Expected Closure Month':'Mar-2025','Closure Date':'11/03/2025','Closure Month / RID':'Mar-2025','Deal Source':'Broker','Source 2':'Marsh network','Source 3':'','Broker':'Marsh','Broker POC':'Ashok Verma','Expected Premium (without GST)':'11,20,000','Brokerage':'5.00%','Pricing Given Multiple Options':'Option A: ₹4,800/life base\nOption B: ₹5,600/life w/ critical illness rider','Closure Amount - without GST':'₹10,80,000.00','Final Closure Amount (W/O GST)':'11,45,000','Extra Collected Over Rater':'₹65,000.00','Fresh - RollOver - Renewal':'Roll Over','Deal Owner':'Jayshree','Second Owner':'','Deal Status':'Closed Won','Sub-Status':'Warm','Remarks':'Closed above rater — added extra for dependent parents cover.' },
+    { 'S No':5,'Company Name':'Verdant Biosciences','City':'Hyderabad','Location':'Gachibowli','Number of Employees':'150','Date of RFQ':'02 Feb 2025','Month of RFQ':'Feb-2025','Expected Closure Month':'Feb-2025','Closure Date':'','Closure Month / RID':'','Deal Source':'Direct','Source 2':'','Source 3':'','Broker':'','Broker POC':'','Expected Premium (without GST)':'₹0.00','Brokerage':'','Pricing Given Multiple Options':'','Closure Amount - without GST':'','Final Closure Amount (W/O GST)':'','Extra Collected Over Rater':'','Fresh - RollOver - Renewal':'Fresh','Deal Owner':'Akash Kiran','Second Owner':'','Deal Status':'Closed Lost','Sub-Status':'','Remarks':'Client pivoted to an in-house broker at the last stage.' }
+  ];
+
+  function seededRandom(seed){
+    var s = seed;
+    return function(){ s = (s * 16807) % 2147483647; return (s - 1) / 2147483646; };
+  }
+  function generateRows(count, startSNo){
+    var rand = seededRandom(42);
+    var companies = ['Aster Manufacturing','Zenith Retail Group','Copperline Steel','Ivory Consulting','Falcon Freight','Marigold Hospitality','Quantum Devices','Silverleaf Pharma','Redwood Realty','Brightwave Media','Alpine Autoparts','Cedarline Chemicals','Novagen Diagnostics','Lakeshore Motors','Ember Energy','Trueline Insurance Services','Pinehill Foods','Crestview Capital','Orbit Telecom','Havenfield Agro'];
+    var cities = ['Bengaluru','Mumbai','Delhi','Pune','Chennai','Hyderabad','Gurgaon','Kolkata'];
+    var brokers = ['Nova','Digit','HS','Paz','Marsh','Prudent','', ''];
+    var owners = ['Jayshree','Akash Kiran','Rishav'];
+    var types = ['Fresh','Rollover','Renewal'];
+    // Target kanban stages, matching the real sheet's current convention:
+    // "Deal Status" holds the stage/outcome text, "Sub-Status" holds the
+    // Hot/Warm/Cold temperature tag.
+    var statuses = STATUS_ORDER.concat([]); // Quote shared / Awaiting update from POC / Negotiation / Queried.../ On Hold / Not Working / Closed Lost / Closed Won
+    var openTemps = ['Hot', 'Warm', 'Cold'];
+    function rawStatusFields(status, rand){
+      if (status === 'Closed Won' || status === 'Closed Lost') return { deal: status, sub: '' };
+      return { deal: status, sub: openTemps[Math.floor(rand()*openTemps.length)] };
+    }
+    var remarkBank = ['Client requested a revised quote.','Awaiting data from client HR on final headcount.','Pricing finalized, awaiting PO.','On hold pending internal budget approval.','Client pivoted to a different broker.','Good rapport with HR head, likely to close.','Renewal terms under negotiation.','No response after third follow-up.'];
+    var rows = [];
+    var months = ['Jan-2025','Feb-2025','Mar-2025','Apr-2025','May-2025','Jun-2025','Jul-2025','Aug-2025'];
+    for (var i = 0; i < count; i++){
+      var status = statuses[Math.floor(rand()*statuses.length)];
+      var fields = rawStatusFields(status, rand);
+      var mIdx = Math.floor(rand()*months.length);
+      var month = months[mIdx];
+      var day = 1 + Math.floor(rand()*27);
+      var mm = mIdx + 1;
+      var dateOfRFQ = (day<10?'0'+day:day) + '/' + (mm<10?'0'+mm:mm) + '/2025';
+      var expected = 300000 + Math.floor(rand()*3200000);
+      var isWon = status === 'Closed Won';
+      var isLost = status === 'Closed Lost';
+      var closureAmt = isWon ? Math.round(expected * (0.85 + rand()*0.3)) : 0;
+      var closureDateStr = '';
+      if (isWon || isLost){
+        var cday = 1 + Math.floor(rand()*27);
+        var cm = Math.min(mIdx + 1, months.length-1) + 1;
+        closureDateStr = (cday<10?'0'+cday:cday) + '/' + (cm<10?'0'+cm:cm) + '/2025';
+      }
+      var employees = 40 + Math.floor(rand()*900);
+      var remark = remarkBank[Math.floor(rand()*remarkBank.length)];
+      rows.push({
+        'S No': startSNo + i,
+        'Company Name': companies[Math.floor(rand()*companies.length)] + (rand() > 0.7 ? ' ' + ['Pvt Ltd','Industries','Group','Solutions'][Math.floor(rand()*4)] : ''),
+        'City': cities[Math.floor(rand()*cities.length)],
+        'Location': 'Sector ' + (1 + Math.floor(rand()*40)),
+        'Number of Employees': String(employees),
+        'Date of RFQ': dateOfRFQ,
+        'Month of RFQ': month,
+        'Expected Closure Month': months[Math.min(mIdx+1, months.length-1)],
+        'Closure Date': closureDateStr,
+        'Closure Month / RID': closureDateStr ? month : '',
+        'Deal Source': rand() > 0.35 ? 'Broker' : 'Direct',
+        'Source 2': rand() > 0.6 ? 'Referral' : '',
+        'Source 3': '',
+        'Broker': brokers[Math.floor(rand()*brokers.length)],
+        'Broker POC': rand() > 0.4 ? ['Ritesh Sharma','Meera Nair','Ashok Verma','Divya Kapoor','Sameer Khan'][Math.floor(rand()*5)] : '',
+        'Expected Premium (without GST)': '₹' + expected.toLocaleString('en-IN') + '.00',
+        'Brokerage': (2 + Math.floor(rand()*14)) + '.00%',
+        'Pricing Given Multiple Options': rand() > 0.5 ? ('Option A: ₹' + (4000+Math.floor(rand()*2000)) + '/life base\nOption B: ₹' + (5200+Math.floor(rand()*2500)) + '/life enhanced') : '',
+        'Closure Amount - without GST': isWon ? String(closureAmt) : '',
+        'Final Closure Amount (W/O GST)': isWon ? '₹' + closureAmt.toLocaleString('en-IN') + '.00' : '₹0.00',
+        'Extra Collected Over Rater': isWon && rand() > 0.6 ? '₹' + Math.round(closureAmt*0.03).toLocaleString('en-IN') : '',
+        'Fresh - RollOver - Renewal': types[Math.floor(rand()*types.length)],
+        'Deal Owner': owners[Math.floor(rand()*owners.length)],
+        'Second Owner': rand() > 0.7 ? owners[Math.floor(rand()*owners.length)] : '',
+        'Deal Status': fields.deal,
+        'Sub-Status': fields.sub,
+        'Remarks': remark
+      });
+    }
+    return rows;
+  }
+  var SAMPLE_RAW = HAND_ROWS.concat(generateRows(45, HAND_ROWS.length + 1));
+
+  var DATA = [];       // full normalized dataset
+  var FILTERED = [];   // after filters + search applied
+  var filterState = { owners: [], sources: [], types: [], cities: [], closureMonths: [], activeOnly: false, search: '' };
+  var subTab = 'kanban';
+  var charts = {};
+
+  /* ---------------- toast ---------------- */
+  function toast(msg){
+    var host = document.getElementById('toastHost');
+    var el = document.createElement('div');
+    el.className = 'animate-toastin rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-lg px-3.5 py-2.5 text-xs text-slate-700 dark:text-slate-200 max-w-xs';
+    el.textContent = msg;
+    host.appendChild(el);
+    setTimeout(function(){ el.remove(); }, 5000);
+  }
+
+  /* ---------------- data badge ---------------- */
+  function setDataBadge(state, note){
+    var el = document.getElementById('dataBadge');
+    if (state === 'live') {
+      el.className = 'inline-flex items-center gap-1.5 rounded-full border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 text-[11px] font-medium px-3 py-1';
+      el.innerHTML = '<span class="h-1.5 w-1.5 rounded-full bg-emerald-500"></span> Live' + (note ? ' — ' + note : '');
+    } else if (state === 'error') {
+      el.className = 'inline-flex items-center gap-1.5 rounded-full border border-rose-200 dark:border-rose-800 bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 text-[11px] font-medium px-3 py-1';
+      el.innerHTML = '<span class="h-1.5 w-1.5 rounded-full bg-rose-500"></span> Feed error — showing sample data';
+    } else {
+      el.className = 'inline-flex items-center gap-1.5 rounded-full border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 text-[11px] font-medium px-3 py-1';
+      el.innerHTML = '<span class="h-1.5 w-1.5 rounded-full bg-amber-500"></span> Sample data — sheet not connected';
+    }
+  }
+
+  /* ---------------- write-back (POST), unused unless an editable view is added later ---------------- */
+  function postToSheet(action, data, sheetRow){
+    if (!APPS_SCRIPT_URL) return Promise.reject(new Error('No Apps Script URL configured.'));
+    var body = { action: action, data: data };
+    if (sheetRow !== undefined && sheetRow !== null) body.sheetRow = sheetRow;
+    return fetch(APPS_SCRIPT_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify(body)
+    }).then(function(res){
+      if (!res.ok) throw new Error('HTTP ' + res.status + ' from Apps Script');
+      return res.json().catch(function(){ throw new Error('Apps Script did not return JSON — is doPost deployed?'); });
+    }).then(function(json){
+      if (!json || json.ok !== true) throw new Error((json && json.error) || 'Apps Script reported an error');
+      return json;
+    });
+  }
+
+  /* =====================================================================
+     3. FILTERING
+     ===================================================================== */
+  function uniqueValues(field){
+    var set = {};
+    DATA.forEach(function(r){ var v = r[field]; if (v) set[v] = true; });
+    return Object.keys(set).sort();
+  }
+
+  function applyFilters(){
+    var q = filterState.search.trim().toLowerCase();
+    FILTERED = DATA.filter(function(r){
+      if (filterState.owners.length && filterState.owners.indexOf(r.dealOwner) === -1) return false;
+      if (filterState.sources.length && filterState.sources.indexOf(r.dealSource) === -1) return false;
+      if (filterState.types.length && filterState.types.indexOf(r.businessType) === -1) return false;
+      if (filterState.cities.length && filterState.cities.indexOf(r.city) === -1) return false;
+      if (filterState.closureMonths.length && filterState.closureMonths.indexOf(r.expectedClosureMonth) === -1) return false;
+      if (filterState.activeOnly && (r.dealStatus === 'Closed Won' || r.dealStatus === 'Closed Lost')) return false;
+      if (q && r.company.toLowerCase().indexOf(q) === -1 && r.brokerPOC.toLowerCase().indexOf(q) === -1) return false;
+      return true;
+    });
+    document.getElementById('resultCount').textContent = FILTERED.length + ' of ' + DATA.length + ' deals';
+    renderActivePipelineSummary();
+    renderKanban();
+    renderTable();
+  }
+
+  // "Active revenue pipeline" = everything except Closed Lost — combines
+  // what's already closed won with what's still open, so leadership/reps
+  // can see total live revenue regardless of the activeOnly toggle
+  // above (this always disregards Closed Lost by definition).
+  function renderActivePipelineSummary(){
+    var host = document.getElementById('activePipelineSummary');
+    if (!host) return;
+    var activeInView = FILTERED.filter(function(d){ return OPEN_STAGES.indexOf(d.dealStatus) > -1; });
+    var activeValue = activeInView.reduce(function(s,d){ return s + d.expectedPremium; }, 0);
+    var wonInView = FILTERED.filter(function(d){ return d.dealStatus === 'Closed Won'; });
+    var wonValue = wonInView.reduce(function(s,d){ return s + d.finalClosureAmount; }, 0);
+    var lostInView = FILTERED.filter(function(d){ return d.dealStatus === 'Closed Lost'; });
+    var lostValue = lostInView.reduce(function(s,d){ return s + d.expectedPremium; }, 0);
+
+    // Lapsed pipeline: still-open deals whose Expected Closure Month is
+    // before the current month — i.e. supposed to have closed already but
+    // didn't. Deals with no expected closure month are left out (can't
+    // tell if they're lapsed) rather than guessed either way.
+    var curIdx = currentMonthIndex();
+    var lapsedInView = activeInView.filter(function(d){
+      var idx = monthIndexFromLabel(d.expectedClosureMonth);
+      return idx !== null && idx < curIdx;
+    });
+    var lapsedValue = lapsedInView.reduce(function(s,d){ return s + d.expectedPremium; }, 0);
+
+    var cards = [
+      { label: 'Active Deals', value: String(activeInView.length), sub: 'still open — excl. Won & Lost' },
+      { label: 'Active Revenue Pipeline', value: fmtMoneyShort(activeValue), sub: 'expected premium, open only' },
+      { label: 'Lapsed Pipeline', value: fmtMoneyShort(lapsedValue), sub: lapsedInView.length + ' deals past expected closure' },
+      { label: 'Closed Won (for reference)', value: fmtMoneyShort(wonValue), sub: wonInView.length + ' deals' },
+      { label: 'Closed Lost (for reference)', value: fmtMoneyShort(lostValue), sub: lostInView.length + ' deals' }
+    ];
+    host.innerHTML = cards.map(function(c){
+      return '<div class="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3">' +
+        '<div class="text-[10px] font-medium text-slate-400 dark:text-slate-500">' + c.label + '</div>' +
+        '<div class="text-base font-semibold mt-0.5">' + c.value + '</div>' +
+        '<div class="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">' + c.sub + '</div>' +
+      '</div>';
+    }).join('');
+  }
+
+  function parseMonthYearLabel(s){
+    var m = String(s).trim().match(/^([A-Za-z]{3,})[-\s](\d{4})$/);
+    if (!m) return null;
+    var mi = MONTH_NAMES.indexOf(m[1].slice(0,3).toLowerCase());
+    if (mi === -1) return null;
+    return { year: Number(m[2]), month: mi };
+  }
+
+  // Single-integer month index (e.g. Mar-2026 -> 2026*12+2) so two
+  // "Mon-YYYY" labels can be compared across year boundaries with a plain
+  // numeric comparison — used to split "lapsed" (before this month) from
+  // "upcoming" (this month or later) pipeline.
+  function monthIndexFromLabel(label){
+    var p = parseMonthYearLabel(label);
+    return p ? (p.year * 12 + p.month) : null;
+  }
+  function currentMonthIndex(){
+    var now = new Date();
+    return now.getFullYear() * 12 + now.getMonth();
+  }
+
+  function buildMultiSelect(containerId, field, opts){
+    opts = opts || {};
+    var container = document.getElementById(containerId);
+    var panel = container.querySelector('.msel-panel');
+    var btn = container.querySelector('.msel-btn');
+    var values = uniqueValues(field);
+    if (opts.groupByYear) {
+      values = values.slice().sort(function(a, b){
+        var pa = parseMonthYearLabel(a), pb = parseMonthYearLabel(b);
+        if (pa && pb) return (pa.year - pb.year) || (pa.month - pb.month);
+        if (pa) return -1;
+        if (pb) return 1;
+        return a.localeCompare(b);
+      });
+    }
+    // Backward-compatible default: the five top filter-bar dropdowns read
+    // and write filterState directly. Anything passing explicit
+    // getValue/setValue (the Data Table's column-filter dropdowns) uses
+    // those instead, so the same widget serves both places.
+    var stateKey = { mselOwner:'owners', mselSource:'sources', mselType:'types', mselCity:'cities', mselClosureMonth:'closureMonths' }[containerId];
+    var getCurrent = opts.getValue || function(){ return filterState[stateKey]; };
+    var setCurrent = opts.setValue || function(arr){ filterState[stateKey] = arr; };
+    var onApply = opts.onApply || applyFilters;
+    var pending = getCurrent().slice(); // staged selection, only committed on Apply
+
+    function checkboxRowHTML(v, displayLabel){
+      var checked = pending.indexOf(v) > -1 ? 'checked' : '';
+      return '<label class="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer text-xs">' +
+        '<input type="checkbox" data-val="' + v.replace(/"/g,'&quot;') + '" ' + checked + ' class="rounded border-slate-300 text-[#0055ff] focus:ring-[#0055ff]" />' +
+        '<span>' + escapeHTML(displayLabel != null ? displayLabel : v) + '</span></label>';
+    }
+
+    function paintPanel(){
+      var checkboxRows;
+      if (opts.groupByYear) {
+        var groups = {}, order = [];
+        values.forEach(function(v){
+          var p = parseMonthYearLabel(v);
+          var yearKey = p ? String(p.year) : 'Other';
+          if (!groups[yearKey]) { groups[yearKey] = []; order.push(yearKey); }
+          groups[yearKey].push(v);
+        });
+        checkboxRows = order.map(function(yearKey){
+          return '<div class="text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide px-2 pt-2 pb-1 sticky top-0 bg-white dark:bg-slate-900">' + yearKey + '</div>' +
+            groups[yearKey].map(function(v){
+              var p = parseMonthYearLabel(v);
+              return checkboxRowHTML(v, p ? MONTH_ABBR[p.month] : v);
+            }).join('');
+        }).join('');
+      } else {
+        checkboxRows = values.map(function(v){ return checkboxRowHTML(v); }).join('');
+      }
+      checkboxRows = checkboxRows || '<div class="px-2 py-1.5 text-slate-400 text-xs">No values yet</div>';
+      panel.innerHTML = checkboxRows +
+        '<div class="flex items-center justify-between gap-2 mt-2 pt-2 border-t border-slate-100 dark:border-slate-800">' +
+          '<button class="msel-cancel text-[11px] text-slate-400 hover:text-slate-600 dark:hover:text-slate-300">Cancel</button>' +
+          '<button class="msel-apply px-3 py-1 text-[11px] font-medium rounded-md bg-[#0055ff] text-white hover:bg-blue-700">Apply</button>' +
+        '</div>';
+
+      panel.querySelectorAll('input[type=checkbox]').forEach(function(cb){
+        cb.addEventListener('change', function(){
+          var val = cb.getAttribute('data-val');
+          var idx = pending.indexOf(val);
+          if (cb.checked && idx === -1) pending.push(val);
+          if (!cb.checked && idx > -1) pending.splice(idx, 1);
+        });
+      });
+      panel.querySelector('.msel-apply').addEventListener('click', function(){
+        setCurrent(pending.slice());
+        updateMselLabel(container, getCurrent);
+        onApply();
+        container.classList.remove('open');
+      });
+      panel.querySelector('.msel-cancel').addEventListener('click', function(){
+        pending = getCurrent().slice();
+        container.classList.remove('open');
+      });
+      // Clicks anywhere inside the panel (checkboxes, labels, buttons)
+      // must never bubble to the document-level closer below — that was
+      // what closed the dropdown after every single checkbox click.
+      panel.addEventListener('click', function(e){ e.stopPropagation(); });
+    }
+    paintPanel();
+    updateMselLabel(container, getCurrent);
+
+    btn.onclick = function(e){
+      e.stopPropagation();
+      var wasOpen = container.classList.contains('open');
+      document.querySelectorAll('.msel.open').forEach(function(m){ m.classList.remove('open'); });
+      if (!wasOpen) {
+        pending = getCurrent().slice(); // reset staged selection to current committed state
+        paintPanel();
+        container.classList.add('open');
+      }
+    };
+  }
+  function updateMselLabel(container, getCurrentOrStateKey){
+    var arr = typeof getCurrentOrStateKey === 'function' ? getCurrentOrStateKey() : filterState[getCurrentOrStateKey];
+    var n = arr.length;
+    container.querySelector('.msel-count').textContent = n ? '(' + n + ')' : '';
+  }
+  document.addEventListener('click', function(e){
+    document.querySelectorAll('.msel.open').forEach(function(m){
+      if (!m.contains(e.target)) m.classList.remove('open');
+    });
+  });
+
+  document.getElementById('searchBox').addEventListener('input', function(e){
+    filterState.search = e.target.value;
+    applyFilters();
+  });
+  document.getElementById('activePipelineToggle').addEventListener('click', function(){
+    filterState.activeOnly = !filterState.activeOnly;
+    this.classList.toggle('bg-emerald-50', filterState.activeOnly);
+    this.classList.toggle('dark:bg-emerald-950/40', filterState.activeOnly);
+    this.classList.toggle('border-emerald-300', filterState.activeOnly);
+    applyFilters();
+  });
+  document.getElementById('clearFilters').addEventListener('click', function(){
+    filterState = { owners: [], sources: [], types: [], cities: [], closureMonths: [], activeOnly: false, search: '' };
+    document.getElementById('searchBox').value = '';
+    var apt = document.getElementById('activePipelineToggle');
+    apt.classList.remove('bg-emerald-50','dark:bg-emerald-950/40','border-emerald-300');
+    buildMultiSelect('mselOwner', 'dealOwner');
+    buildMultiSelect('mselSource', 'dealSource');
+    buildMultiSelect('mselType', 'businessType');
+    refreshColumnFilterOptions();
+    buildMultiSelect('mselCity', 'city');
+    buildMultiSelect('mselClosureMonth', 'expectedClosureMonth', { groupByYear: true });
+    applyFilters();
+  });
+
+  /* =====================================================================
+     4. KANBAN
+     ===================================================================== */
+  function statusColumns(){
+    var extras = {};
+    DATA.forEach(function(r){ if (STATUS_ORDER.indexOf(r.dealStatus) === -1) extras[r.dealStatus] = true; });
+    return STATUS_ORDER.concat(Object.keys(extras));
+  }
+
+  function renderKanban(){
+    var board = document.getElementById('kanbanBoard');
+    var cols = statusColumns();
+    board.innerHTML = cols.map(function(status){
+      var deals = FILTERED.filter(function(r){ return r.dealStatus === status; });
+      var total = deals.reduce(function(sum, d){ return sum + (d.dealStatus === 'Closed Won' ? d.finalClosureAmount : d.expectedPremium); }, 0);
+      var colorInfo = STATUS_COLORS[status] || { dot:'bg-slate-400', chip:'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300' };
+      return '<div class="kanban-col flex-shrink-0">' +
+        '<div class="flex items-center justify-between mb-2 px-1">' +
+          '<div class="flex items-center gap-1.5 text-xs font-semibold"><span class="h-2 w-2 rounded-full ' + colorInfo.dot + '"></span>' + status + ' <span class="text-slate-400 font-normal">(' + deals.length + ')</span></div>' +
+        '</div>' +
+        '<div class="text-[10px] text-slate-400 dark:text-slate-500 mb-2 px-1">' + fmtMoneyShort(total) + ' total</div>' +
+        '<div class="space-y-2 min-h-[60px]">' +
+          (deals.map(function(d){ return kanbanCardHTML(d); }).join('') || '<div class="text-[11px] text-slate-300 dark:text-slate-600 px-1 py-4 text-center border border-dashed border-slate-200 dark:border-slate-800 rounded-lg">No deals</div>') +
+        '</div>' +
+      '</div>';
+    }).join('');
+
+    board.querySelectorAll('[data-details]').forEach(function(btn){
+      btn.addEventListener('click', function(){ openModal(btn.getAttribute('data-details')); });
+    });
+    board.querySelectorAll('[data-edit]').forEach(function(btn){
+      btn.addEventListener('click', function(){ openEditModal(btn.getAttribute('data-edit')); });
+    });
+  }
+
+  function kanbanCardHTML(d){
+    var amount = d.dealStatus === 'Closed Won' ? d.finalClosureAmount : d.expectedPremium;
+    var amountLabel = d.dealStatus === 'Closed Won' ? 'Closed' : 'Expected';
+    return '<div class="kanban-card rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3">' +
+      '<div class="text-xs font-semibold leading-snug mb-1">' + escapeHTML(d.company) + '</div>' +
+      '<div class="text-[10px] text-slate-400 dark:text-slate-500 mb-2">' + escapeHTML(d.city || '—') + ' · ' + (d.employees || 0) + ' lives</div>' +
+      '<div class="flex flex-wrap gap-1 mb-2">' +
+        (d.broker ? '<span class="chip bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300">' + escapeHTML(d.broker) + '</span>' : '') +
+        '<span class="chip bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300">' + escapeHTML(d.dealOwner) + '</span>' +
+        (d.temperature ? '<span class="chip ' + TEMP_COLORS[d.temperature] + '">' + d.temperature + '</span>' : '') +
+      '</div>' +
+      '<div class="flex items-center justify-between">' +
+        '<div class="text-xs font-semibold">' + fmtMoneyShort(amount) + ' <span class="font-normal text-slate-400 text-[10px]">' + amountLabel + '</span></div>' +
+        '<div class="flex items-center gap-2">' +
+          '<button data-details="' + d._row + '" class="text-[11px] text-[#0055ff] hover:underline">Details</button>' +
+          '<button data-edit="' + d._row + '" class="text-[11px] text-slate-400 hover:text-slate-700 dark:hover:text-slate-200" title="Edit">✎</button>' +
+        '</div>' +
+      '</div>' +
+    '</div>';
+  }
+
+  /* =====================================================================
+     5. TABLE
+     ===================================================================== */
+  var columnFilters = {
+    company:'', city:'', businessType:[], source:'', dealOwner:[],
+    expMin:'', expMax:'', closeMin:'', closeMax:'',
+    dealStatus:[], temperature:[], dateOfRFQ:'', closureDate:''
+  };
+
+  // Column filters narrow what's shown in the Data Table specifically —
+  // they don't affect the Kanban board or the resultCount, which stay tied
+  // to the filter bar above (owners/sources/type/city/closure month/search).
+  function tableFilteredRows(){
+    return FILTERED.filter(function(d){
+      if (columnFilters.company && d.company.toLowerCase().indexOf(columnFilters.company.toLowerCase()) === -1) return false;
+      if (columnFilters.city && d.city.toLowerCase().indexOf(columnFilters.city.toLowerCase()) === -1) return false;
+      if (columnFilters.businessType.length && columnFilters.businessType.indexOf(d.businessType) === -1) return false;
+      if (columnFilters.source) {
+        var sob = (d.broker || d.dealSource || '').toLowerCase();
+        if (sob.indexOf(columnFilters.source.toLowerCase()) === -1) return false;
+      }
+      if (columnFilters.dealOwner.length && columnFilters.dealOwner.indexOf(d.dealOwner) === -1) return false;
+      if (columnFilters.expMin !== '' && d.expectedPremium < parseFloat(columnFilters.expMin)) return false;
+      if (columnFilters.expMax !== '' && d.expectedPremium > parseFloat(columnFilters.expMax)) return false;
+      if (columnFilters.closeMin !== '' && (d.finalClosureAmount || 0) < parseFloat(columnFilters.closeMin)) return false;
+      if (columnFilters.closeMax !== '' && (d.finalClosureAmount || 0) > parseFloat(columnFilters.closeMax)) return false;
+      if (columnFilters.dealStatus.length && columnFilters.dealStatus.indexOf(d.dealStatus) === -1) return false;
+      if (columnFilters.temperature.length && columnFilters.temperature.indexOf(d.temperature) === -1) return false;
+      if (columnFilters.dateOfRFQ && fmtDate(d.dateOfRFQ).toLowerCase().indexOf(columnFilters.dateOfRFQ.toLowerCase()) === -1) return false;
+      if (columnFilters.closureDate && fmtDate(d.closureDate).toLowerCase().indexOf(columnFilters.closureDate.toLowerCase()) === -1) return false;
+      return true;
+    });
+  }
+
+  // Rebuilds the Type/Owner/Status/Temperature column-filter dropdowns from
+  // current DATA. These reuse the same checkbox multi-select widget as the
+  // filter bar above (select/unselect multiple, Apply to commit) via
+  // explicit getValue/setValue/onApply so they read and write columnFilters
+  // instead of filterState.
+  function refreshColumnFilterOptions(){
+    if (!document.getElementById('colfType')) return;
+    buildMultiSelect('colfType', 'businessType', {
+      getValue: function(){ return columnFilters.businessType; },
+      setValue: function(arr){ columnFilters.businessType = arr; },
+      onApply: renderTable
+    });
+    buildMultiSelect('colfOwner', 'dealOwner', {
+      getValue: function(){ return columnFilters.dealOwner; },
+      setValue: function(arr){ columnFilters.dealOwner = arr; },
+      onApply: renderTable
+    });
+    buildMultiSelect('colfStatus', 'dealStatus', {
+      getValue: function(){ return columnFilters.dealStatus; },
+      setValue: function(arr){ columnFilters.dealStatus = arr; },
+      onApply: renderTable
+    });
+    buildMultiSelect('colfTemp', 'temperature', {
+      getValue: function(){ return columnFilters.temperature; },
+      setValue: function(arr){ columnFilters.temperature = arr; },
+      onApply: renderTable
+    });
+  }
+
+  // Wire the filter-row inputs once — they're static elements, only the
+  // table body re-renders on each change.
+  (function wireColumnFilters(){
+    var bindings = [
+      ['colf_company', 'company'], ['colf_city', 'city'], ['colf_source', 'source'],
+      ['colf_expMin', 'expMin'], ['colf_expMax', 'expMax'],
+      ['colf_closeMin', 'closeMin'], ['colf_closeMax', 'closeMax'],
+      ['colf_dateOfRFQ', 'dateOfRFQ'], ['colf_closureDate', 'closureDate']
+    ];
+    bindings.forEach(function(pair){
+      var el = document.getElementById(pair[0]);
+      if (!el) return;
+      el.addEventListener('input', function(){ columnFilters[pair[1]] = el.value; renderTable(); });
+    });
+    var clearBtn = document.getElementById('colfClear');
+    if (clearBtn) clearBtn.addEventListener('click', function(){
+      columnFilters.company = ''; columnFilters.city = ''; columnFilters.source = '';
+      columnFilters.expMin = ''; columnFilters.expMax = ''; columnFilters.closeMin = ''; columnFilters.closeMax = '';
+      columnFilters.dateOfRFQ = ''; columnFilters.closureDate = '';
+      columnFilters.businessType = []; columnFilters.dealOwner = []; columnFilters.dealStatus = []; columnFilters.temperature = [];
+      document.querySelectorAll('#tableFilterRow input').forEach(function(el){ el.value = ''; });
+      refreshColumnFilterOptions(); // repaints the four multi-select buttons back to "All"
+      renderTable();
+    });
+  })();
+
+  function renderTable(){
+    var tbody = document.getElementById('pipelineTableBody');
+    var rows = tableFilteredRows();
+    tbody.innerHTML = rows.map(function(d){
+      var colorInfo = STATUS_COLORS[d.dealStatus] || { chip:'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300' };
+      return '<tr class="border-t border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50">' +
+        '<td class="px-3 py-2 font-medium">' + escapeHTML(d.company) + '</td>' +
+        '<td class="px-3 py-2 text-slate-500 dark:text-slate-400">' + escapeHTML(d.city || '—') + '</td>' +
+        '<td class="px-3 py-2">' + escapeHTML(d.businessType) + '</td>' +
+        '<td class="px-3 py-2 text-slate-500 dark:text-slate-400">' + escapeHTML(d.broker || d.dealSource) + '</td>' +
+        '<td class="px-3 py-2">' + escapeHTML(d.dealOwner) + '</td>' +
+        '<td class="px-3 py-2 text-right tabular-nums">' + fmtMoney(d.expectedPremium) + '</td>' +
+        '<td class="px-3 py-2 text-right tabular-nums">' + (d.finalClosureAmount ? fmtMoney(d.finalClosureAmount) : '—') + '</td>' +
+        '<td class="px-3 py-2"><span class="chip ' + colorInfo.chip + '">' + escapeHTML(d.dealStatus) + '</span></td>' +
+        '<td class="px-3 py-2">' + (d.temperature ? '<span class="chip ' + TEMP_COLORS[d.temperature] + '">' + d.temperature + '</span>' : '<span class="text-slate-400">—</span>') + '</td>' +
+        '<td class="px-3 py-2 text-slate-500 dark:text-slate-400">' + fmtDate(d.dateOfRFQ) + '</td>' +
+        '<td class="px-3 py-2 text-slate-500 dark:text-slate-400">' + fmtDate(d.closureDate) + '</td>' +
+        '<td class="px-3 py-2 text-center"><button data-details="' + d._row + '" class="text-[#0055ff] hover:underline text-[11px]">View</button></td>' +
+        '<td class="px-3 py-2 text-center"><button data-edit="' + d._row + '" class="text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 text-[11px]" title="Edit">✎ Edit</button></td>' +
+      '</tr>';
+    }).join('');
+
+    tbody.querySelectorAll('[data-details]').forEach(function(btn){
+      btn.addEventListener('click', function(){ openModal(btn.getAttribute('data-details')); });
+    });
+    tbody.querySelectorAll('[data-edit]').forEach(function(btn){
+      btn.addEventListener('click', function(){ openEditModal(btn.getAttribute('data-edit')); });
+    });
+  }
+
+  /* Sortable table headers */
+  document.querySelectorAll('th[data-key]').forEach(function(th){
+    var asc = true;
+    th.addEventListener('click', function(){
+      var key = th.getAttribute('data-key');
+      FILTERED.sort(function(a, b){
+        var av = a[key], bv = b[key];
+        if (av instanceof Date || bv instanceof Date) { av = av ? av.getTime() : 0; bv = bv ? bv.getTime() : 0; }
+        if (typeof av === 'string') av = av.toLowerCase();
+        if (typeof bv === 'string') bv = bv.toLowerCase();
+        if (av < bv) return asc ? -1 : 1;
+        if (av > bv) return asc ? 1 : -1;
+        return 0;
+      });
+      asc = !asc;
+      renderTable();
+    });
+  });
+
+  /* =====================================================================
+     6. DEAL DETAILS / EDIT MODAL
+     ===================================================================== */
+
+  // Exact real sheet header strings the write-back payload must use —
+  // these match Code.gs's headerMap_() exact-match lookup, including the
+  // two headers that contain a literal line break.
+  //
+  // IMPORTANT: the columns physically labeled "Deal Status" and "Sub-Status"
+  // have already been swapped once (the header called "Deal Status" holds
+  // the stage/outcome text, "Sub-Status" holds the Hot/Warm/Cold
+  // temperature) — reading is content-based and survives another swap (see
+  // classifyStatusFields above), but writing has to target a specific
+  // header, so these two constants reflect the CURRENT physical layout. If
+  // the columns get swapped again, update these two lines to match.
+  var SHEET_HEADERS = {
+    company: 'Company Name ',
+    city: 'City',
+    employees: 'Number of Employees',
+    dateOfRFQ: 'Date of RFQ',
+    closureDate: 'Closure Date',
+    dealSource: 'Deal Source',
+    broker: 'Broker',
+    brokerPOC: 'Broker POC',
+    expectedPremium: 'Expected Premium \n(without GST)',
+    brokerage: 'Brokerage',
+    closureAmount: 'Closure Amount - without GST',
+    finalClosureAmount: 'Final Closure Amount\n(W/O GST)',
+    extraCollected: 'Extra Collected Over Rater',
+    businessType: 'Fresh - RollOver - Renewal',
+    dealOwner: 'Deal Owner',
+    secondOwner: 'Second Owner',
+    stage: 'Deal Status',        // currently holds the stage/outcome text (Quote shared, Closed Won, etc.)
+    temperature: 'Sub-Status',   // currently holds the Hot/Warm/Cold tag
+    remarks: 'Remarks'
+  };
+
+  // Drives both the edit-deal form and the new-RFQ form. Fields backed by a
+  // fixed/known vocabulary are dropdowns per the "static info stays a
+  // dropdown" requirement; dealSource/broker/stage dropdowns are built
+  // from whatever values already exist in the sheet (plus an "Add new"
+  // escape hatch) since that vocabulary evolves over time.
+  var FIELD_DEFS = [
+    { key:'company', header: SHEET_HEADERS.company, label:'Company Name', type:'text', required:true },
+    { key:'city', header: SHEET_HEADERS.city, label:'City', type:'text' },
+    { key:'employees', header: SHEET_HEADERS.employees, label:'Number of Employees', type:'number' },
+    { key:'dateOfRFQ', header: SHEET_HEADERS.dateOfRFQ, label:'Date of RFQ', type:'date' },
+    { key:'closureDate', header: SHEET_HEADERS.closureDate, label:'Closure Date', type:'date' },
+    { key:'dealSource', header: SHEET_HEADERS.dealSource, label:'Deal Source', type:'select', optionsField:'dealSource', allowOther:true },
+    { key:'broker', header: SHEET_HEADERS.broker, label:'Broker', type:'select', optionsField:'broker', allowOther:true },
+    { key:'brokerPOC', header: SHEET_HEADERS.brokerPOC, label:'Broker POC', type:'text' },
+    { key:'businessType', header: SHEET_HEADERS.businessType, label:'Business Type', type:'select', staticOptions:['Fresh','Rollover','Renewal'] },
+    { key:'expectedPremium', header: SHEET_HEADERS.expectedPremium, label:'Expected Premium (₹, w/o GST)', type:'number' },
+    { key:'brokeragePct', header: SHEET_HEADERS.brokerage, label:'Brokerage Rate (%)', type:'number', isPercent:true },
+    { key:'closureAmount', header: SHEET_HEADERS.closureAmount, label:'Closure Amount (₹, w/o GST)', type:'number' },
+    { key:'finalClosureAmount', header: SHEET_HEADERS.finalClosureAmount, label:'Final Closure Amount (₹, W/O GST)', type:'number' },
+    { key:'extraCollected', header: SHEET_HEADERS.extraCollected, label:'Extra Collected Over Rater (₹)', type:'number' },
+    { key:'dealOwner', header: SHEET_HEADERS.dealOwner, label:'Deal Owner', type:'select', staticOptions: ALLOWED_OWNERS },
+    { key:'secondOwner', header: SHEET_HEADERS.secondOwner, label:'Second Owner', type:'text' },
+    { key:'stageRaw', header: SHEET_HEADERS.stage, label:'Stage', type:'select', staticOptions: STATUS_ORDER, allowOther:true },
+    { key:'temperature', header: SHEET_HEADERS.temperature, label:'Temperature', type:'select', staticOptions:['','Hot','Warm','Cold'] },
+    { key:'remarks', header: SHEET_HEADERS.remarks, label:'Remarks', type:'textarea' }
+  ];
+
+  function toISODateInput(d){
+    if (!d) return '';
+    var mm = String(d.getMonth()+1).padStart(2,'0');
+    var dd = String(d.getDate()).padStart(2,'0');
+    return d.getFullYear() + '-' + mm + '-' + dd;
+  }
+
+  function valuesFromRecord(d){
+    return {
+      company: d.company, city: d.city, employees: d.employees || '',
+      dateOfRFQ: toISODateInput(d.dateOfRFQ), closureDate: toISODateInput(d.closureDate),
+      dealSource: d.dealSource === 'Unspecified' ? '' : d.dealSource, broker: d.broker, brokerPOC: d.brokerPOC,
+      businessType: d.businessType, expectedPremium: d.expectedPremium || '',
+      brokeragePct: d.brokeragePct != null ? d.brokeragePct : '', closureAmount: d.closureAmount || '',
+      finalClosureAmount: d.finalClosureAmount || '', extraCollected: d.extraCollected || '',
+      dealOwner: d.dealOwner === 'Unassigned' ? '' : d.dealOwner, secondOwner: d.secondOwner,
+      stageRaw: d.stageRaw, temperature: d.temperature, remarks: d.remarks
+    };
+  }
+
+  function blankFormValues(){
+    var v = { dateOfRFQ: toISODateInput(new Date()) };
+    return v;
+  }
+
+  function buildFieldHTML(def, value){
+    var id = 'field_' + def.key;
+    value = value == null ? '' : value;
+    if (def.type === 'textarea') {
+      return '<div class="md:col-span-2"><label class="block text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-1">' + def.label + '</label>' +
+        '<textarea id="' + id + '" rows="3" class="w-full px-3 py-2 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950">' + escapeHTML(value) + '</textarea></div>';
+    }
+    if (def.type === 'select') {
+      var opts = def.staticOptions ? def.staticOptions.slice() : uniqueValues(def.optionsField).filter(function(o){ return o !== 'Unspecified' && o !== 'Unassigned'; });
+      if (value && opts.indexOf(value) === -1) opts.push(value);
+      var optionsHTML = opts.map(function(o){
+        return '<option value="' + escapeHTML(o) + '"' + (o === value ? ' selected' : '') + '>' + (o || '(blank)') + '</option>';
+      }).join('');
+      if (def.allowOther) optionsHTML += '<option value="__other__">+ Add new value…</option>';
+      var html = '<div><label class="block text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-1">' + def.label + '</label>' +
+        '<select id="' + id + '" class="w-full px-3 py-2 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950">' + optionsHTML + '</select>';
+      if (def.allowOther) html += '<input id="' + id + '_other" type="text" placeholder="New value" class="hidden mt-1.5 w-full px-3 py-2 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950" />';
+      return html + '</div>';
+    }
+    if (def.type === 'date') {
+      return '<div><label class="block text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-1">' + def.label + '</label>' +
+        '<input id="' + id + '" type="date" value="' + value + '" class="w-full px-3 py-2 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950" /></div>';
+    }
+    return '<div><label class="block text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-1">' + def.label + '</label>' +
+      '<input id="' + id + '" type="' + (def.type === 'number' ? 'number' : 'text') + '" ' + (def.type==='number'?'step="any"':'') + ' value="' + escapeHTML(String(value)) + '" class="w-full px-3 py-2 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950" /></div>';
+  }
+
+  function wireOtherToggles(scope){
+    FIELD_DEFS.forEach(function(def){
+      if (def.type !== 'select' || !def.allowOther) return;
+      var sel = scope.querySelector('#field_' + def.key);
+      var other = scope.querySelector('#field_' + def.key + '_other');
+      if (!sel || !other) return;
+      function sync(){ other.classList.toggle('hidden', sel.value !== '__other__'); }
+      sel.addEventListener('change', sync);
+      sync();
+    });
+  }
+
+  function readFieldValue(def){
+    var el = document.getElementById('field_' + def.key);
+    if (!el) return '';
+    var v = el.value;
+    if (def.type === 'select' && def.allowOther && v === '__other__') {
+      var otherEl = document.getElementById('field_' + def.key + '_other');
+      v = otherEl ? otherEl.value.trim() : '';
+    }
+    if (def.isPercent) return v === '' ? '' : parseFloat(v).toFixed(2) + '%';
+    return v;
+  }
+
+  var editingRow = null; // the DATA record currently open in the edit modal, or null
+
+  function openModal(rowId){
+    editingRow = null;
+    var d = DATA.find(function(r){ return String(r._row) === String(rowId); });
+    if (!d) return;
+    document.getElementById('modalCompany').textContent = d.company;
+    document.getElementById('modalSub').textContent = (d.city || '—') + ' · ' + (d.employees || 0) + ' lives · ' + d.dealStatus;
+    var body = document.getElementById('modalBody');
+    body.innerHTML =
+      '<div class="grid grid-cols-2 gap-3">' +
+        detailItem('Deal Owner', d.dealOwner) +
+        detailItem('Second Owner', d.secondOwner || '—') +
+        detailItem('Temperature', d.temperature || '—') +
+        detailItem('Deal Source', d.dealSource) +
+        detailItem('Broker / POC', (d.broker || '—') + (d.brokerPOC ? ' · ' + d.brokerPOC : '')) +
+        detailItem('RFQ Date', fmtDate(d.dateOfRFQ)) +
+        detailItem('Closure Date', fmtDate(d.closureDate)) +
+        detailItem('Expected Premium', fmtMoney(d.expectedPremium)) +
+        detailItem('Closure Amount', d.finalClosureAmount ? fmtMoney(d.finalClosureAmount) : '—') +
+        detailItem('Brokerage Rate', d.brokeragePct != null ? d.brokeragePct.toFixed(2) + '%' : '—') +
+        detailItem('Extra Over Rater', d.extraCollected ? fmtMoney(d.extraCollected) : '—') +
+      '</div>' +
+      (d.pricingOptions ? '<div><div class="text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1">Pricing Options Given</div>' +
+        '<pre class="whitespace-pre-wrap text-[11px] bg-slate-50 dark:bg-slate-800 rounded-lg p-3 border border-slate-100 dark:border-slate-700">' + escapeHTML(d.pricingOptions) + '</pre></div>' : '') +
+      (d.remarks ? '<div><div class="text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1">Remarks</div>' +
+        '<div class="text-[11px] text-slate-600 dark:text-slate-300">' + escapeHTML(d.remarks) + '</div></div>' : '');
+    document.getElementById('modalFooter').classList.add('hidden');
+    document.getElementById('modalBackdrop').classList.add('open');
+  }
+
+  function openEditModal(rowId){
+    var d = DATA.find(function(r){ return String(r._row) === String(rowId); });
+    if (!d) return;
+    editingRow = d;
+    document.getElementById('modalCompany').textContent = 'Edit — ' + d.company;
+    document.getElementById('modalSub').textContent = 'Row ' + d._row + ' in the sheet';
+    var body = document.getElementById('modalBody');
+    var values = valuesFromRecord(d);
+    body.innerHTML = '<div class="grid grid-cols-1 md:grid-cols-2 gap-3">' +
+      FIELD_DEFS.map(function(def){ return buildFieldHTML(def, values[def.key]); }).join('') +
+    '</div>';
+    wireOtherToggles(body);
+    document.getElementById('modalSaveStatus').textContent = APPS_SCRIPT_URL ? '' : 'No sheet connected — this will only update the view, not the sheet.';
+    document.getElementById('modalFooter').classList.remove('hidden');
+    document.getElementById('modalBackdrop').classList.add('open');
+  }
+
+  function applyEditLocally(rowId, payload){
+    DATA = DATA.map(function(r){
+      if (r._row !== rowId) return r;
+      var updatedRaw = Object.assign({}, r._raw, payload);
+      return normalizeRecord(updatedRaw);
+    });
+    buildMultiSelect('mselOwner', 'dealOwner');
+    buildMultiSelect('mselSource', 'dealSource');
+    buildMultiSelect('mselType', 'businessType');
+    refreshColumnFilterOptions();
+    buildMultiSelect('mselCity', 'city');
+    buildMultiSelect('mselClosureMonth', 'expectedClosureMonth', { groupByYear: true });
+    applyFilters();
+    renderKPIs();
+    renderAllCharts();
+    renderMyDeals();
+  }
+
+  document.getElementById('modalSave').addEventListener('click', function(){
+    if (!editingRow) return;
+    var payload = {};
+    FIELD_DEFS.forEach(function(def){ payload[def.header] = readFieldValue(def); });
+    var statusEl = document.getElementById('modalSaveStatus');
+    var saveBtn = document.getElementById('modalSave');
+    var rowId = editingRow._row;
+
+    if (!APPS_SCRIPT_URL) {
+      applyEditLocally(rowId, payload);
+      toast('Updated locally — no sheet connected, so this will not persist.');
+      document.getElementById('modalBackdrop').classList.remove('open');
+      return;
+    }
+
+    statusEl.textContent = 'Saving…';
+    saveBtn.disabled = true;
+    postToSheet('update', payload, rowId).then(function(){
+      applyEditLocally(rowId, payload);
+      statusEl.textContent = 'Saved.';
+      toast('Changes saved to the sheet.');
+      setTimeout(function(){ document.getElementById('modalBackdrop').classList.remove('open'); }, 500);
+    }).catch(function(err){
+      statusEl.textContent = 'Error: ' + err.message;
+      toast('Could not save: ' + err.message);
+    }).finally(function(){ saveBtn.disabled = false; });
+  });
+
+  document.getElementById('modalCancelEdit').addEventListener('click', function(){
+    document.getElementById('modalBackdrop').classList.remove('open');
+  });
+
+  function detailItem(label, value){
+    return '<div><div class="text-[10px] uppercase tracking-wide text-slate-400 dark:text-slate-500">' + label + '</div><div class="text-xs font-medium mt-0.5">' + escapeHTML(String(value)) + '</div></div>';
+  }
+  document.getElementById('modalClose').addEventListener('click', function(){
+    document.getElementById('modalBackdrop').classList.remove('open');
+    editingRow = null;
+  });
+  document.getElementById('modalBackdrop').addEventListener('click', function(e){
+    if (e.target === this) { this.classList.remove('open'); editingRow = null; }
+  });
+
+  function escapeHTML(s){
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){
+      return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c];
+    });
+  }
+
+  /* =====================================================================
+     7. KPIs
+     ===================================================================== */
+  function renderKPIs(){
+    var totalRFQs = DATA.length;
+    var pipelineValue = DATA.filter(function(d){ return OPEN_STAGES.indexOf(d.dealStatus) > -1; })
+      .reduce(function(s,d){ return s + d.expectedPremium; }, 0);
+    var won = DATA.filter(function(d){ return d.dealStatus === 'Closed Won'; });
+    var lost = DATA.filter(function(d){ return d.dealStatus === 'Closed Lost'; });
+    var closedWonPremium = won.reduce(function(s,d){ return s + d.finalClosureAmount; }, 0);
+    var winRate = (won.length + lost.length) ? (won.length / (won.length + lost.length) * 100) : 0;
+    var coveredLives = won.reduce(function(s,d){ return s + d.employees; }, 0);
+    var avgDealSize = won.length ? closedWonPremium / won.length : 0;
+
+    var cards = [
+      { label: 'Total RFQs', value: totalRFQs.toLocaleString('en-IN'), sub: 'in tracker' },
+      { label: 'Pipeline Expected Value', value: fmtMoneyShort(pipelineValue), sub: 'Hot + Cold + On Hold' },
+      { label: 'Closed Won Premium', value: fmtMoneyShort(closedWonPremium), sub: won.length + ' deals won' },
+      { label: 'Win Rate', value: winRate.toFixed(1) + '%', sub: (won.length+lost.length) + ' decided deals' },
+      { label: 'Total Covered Lives', value: coveredLives.toLocaleString('en-IN'), sub: 'closed won' },
+      { label: 'Avg Deal Size', value: fmtMoneyShort(avgDealSize), sub: 'per closed won deal' }
+    ];
+    document.getElementById('kpiGrid').innerHTML = cards.map(function(c){
+      return '<div class="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">' +
+        '<div class="text-[11px] font-medium text-slate-400 dark:text-slate-500">' + c.label + '</div>' +
+        '<div class="text-xl font-semibold mt-1">' + c.value + '</div>' +
+        '<div class="text-[10px] text-slate-400 dark:text-slate-500 mt-1">' + c.sub + '</div>' +
+      '</div>';
+    }).join('');
+  }
+
+  /* =====================================================================
+     8. CHARTS
+     ===================================================================== */
+  function themeColors(){
+    var dark = document.documentElement.classList.contains('dark');
+    return {
+      dark: dark,
+      text: dark ? '#94a3b8' : '#64748b',
+      grid: dark ? 'rgba(148,163,184,0.12)' : 'rgba(100,116,139,0.10)',
+      brand: '#0055ff',
+      brandLight: dark ? 'rgba(96,165,250,0.85)' : 'rgba(0,85,255,0.75)',
+      accent: '#f59e0b',
+      pieColors: ['#0055ff', '#22c55e', '#f59e0b', '#f43f5e', '#8b5cf6']
+    };
+  }
+  function destroyChart(key){ if (charts[key]) { charts[key].destroy(); delete charts[key]; } }
+
+  function renderBrokerChart(){
+    var byBroker = {};
+    DATA.forEach(function(d){
+      var key = d.broker || (d.dealSource === 'Direct' ? 'Direct' : 'Other');
+      if (!byBroker[key]) byBroker[key] = { revenue: 0, won: 0, lost: 0 };
+      if (d.dealStatus === 'Closed Won') { byBroker[key].revenue += d.finalClosureAmount; byBroker[key].won++; }
+      if (d.dealStatus === 'Closed Lost') byBroker[key].lost++;
+    });
+    var entries = Object.keys(byBroker).map(function(k){ return { name: k, revenue: byBroker[k].revenue, winRate: (byBroker[k].won+byBroker[k].lost) ? byBroker[k].won/(byBroker[k].won+byBroker[k].lost)*100 : 0 }; });
+    entries.sort(function(a,b){ return b.revenue - a.revenue; });
+    entries = entries.slice(0, 8);
+    var c = themeColors();
+    destroyChart('broker');
+    charts.broker = new Chart(document.getElementById('chartBroker'), {
+      data: {
+        labels: entries.map(function(e){ return e.name; }),
+        datasets: [
+          { type: 'bar', label: 'Closed Revenue', data: entries.map(function(e){ return e.revenue; }), backgroundColor: c.brandLight, borderRadius: 4, yAxisID: 'y' },
+          { type: 'line', label: 'Win Rate %', data: entries.map(function(e){ return e.winRate; }), borderColor: c.accent, backgroundColor: c.accent, tension: 0.35, yAxisID: 'y1' }
+        ]
+      },
+      options: chartOptions(c, { y: { title: '₹' }, y1: { title: '%', max: 100 } })
+    });
+  }
+
+  function renderTrendChart(){
+    var byMonth = {};
+    DATA.forEach(function(d){
+      var mk = monthKey(d.dateOfRFQ);
+      if (mk) { byMonth[mk] = byMonth[mk] || { rfqs: 0, closed: 0 }; byMonth[mk].rfqs++; }
+    });
+    DATA.forEach(function(d){
+      if (d.dealStatus === 'Closed Won'){
+        var mk2 = monthKey(d.closureDate) || monthKey(d.dateOfRFQ);
+        if (mk2) { byMonth[mk2] = byMonth[mk2] || { rfqs: 0, closed: 0 }; byMonth[mk2].closed += d.finalClosureAmount; }
+      }
+    });
+    var keys = Object.keys(byMonth).sort();
+    var c = themeColors();
+    destroyChart('trend');
+    charts.trend = new Chart(document.getElementById('chartTrend'), {
+      data: {
+        labels: keys.map(monthLabel),
+        datasets: [
+          { type: 'bar', label: 'RFQ Volume', data: keys.map(function(k){ return byMonth[k].rfqs; }), backgroundColor: c.brandLight, borderRadius: 4, yAxisID: 'y' },
+          { type: 'line', label: 'Closed Won Premium', data: keys.map(function(k){ return byMonth[k].closed; }), borderColor: '#22c55e', backgroundColor: '#22c55e', tension: 0.35, yAxisID: 'y1' }
+        ]
+      },
+      options: chartOptions(c, { y: { title: 'count' }, y1: { title: '₹' } })
+    });
+  }
+
+  function renderSplitChart(){
+    var byType = {};
+    DATA.forEach(function(d){
+      if (d.dealStatus !== 'Closed Won') return;
+      byType[d.businessType] = (byType[d.businessType] || 0) + d.finalClosureAmount;
+    });
+    var keys = Object.keys(byType);
+    var c = themeColors();
+    destroyChart('split');
+    charts.split = new Chart(document.getElementById('chartSplit'), {
+      type: 'doughnut',
+      data: {
+        labels: keys,
+        datasets: [{ data: keys.map(function(k){ return byType[k]; }), backgroundColor: c.pieColors, borderColor: c.dark ? '#0f172a' : '#ffffff', borderWidth: 2 }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { position: 'bottom', labels: { color: c.text, font: { size: 11 }, boxWidth: 10 } },
+          tooltip: { callbacks: { label: function(ctx){ return ctx.label + ': ' + fmtMoney(ctx.parsed); } } } }
+      }
+    });
+  }
+
+  function renderLeaderboardChart(){
+    var byOwner = {};
+    DATA.forEach(function(d){
+      if (!byOwner[d.dealOwner]) byOwner[d.dealOwner] = { revenue: 0, won: 0, lost: 0 };
+      if (d.dealStatus === 'Closed Won') { byOwner[d.dealOwner].revenue += d.finalClosureAmount; byOwner[d.dealOwner].won++; }
+      if (d.dealStatus === 'Closed Lost') byOwner[d.dealOwner].lost++;
+    });
+    var entries = Object.keys(byOwner).map(function(k){ return { name: k, revenue: byOwner[k].revenue, conv: (byOwner[k].won+byOwner[k].lost) ? byOwner[k].won/(byOwner[k].won+byOwner[k].lost)*100 : 0 }; });
+    entries.sort(function(a,b){ return b.revenue - a.revenue; });
+    entries = entries.slice(0, 8);
+    var c = themeColors();
+    destroyChart('leaderboard');
+    charts.leaderboard = new Chart(document.getElementById('chartLeaderboard'), {
+      data: {
+        labels: entries.map(function(e){ return e.name; }),
+        datasets: [
+          { type: 'bar', label: 'Closed Revenue', data: entries.map(function(e){ return e.revenue; }), backgroundColor: c.brandLight, borderRadius: 4, yAxisID: 'y' },
+          { type: 'line', label: 'Conversion Rate %', data: entries.map(function(e){ return e.conv; }), borderColor: '#8b5cf6', backgroundColor: '#8b5cf6', tension: 0.35, yAxisID: 'y1' }
+        ]
+      },
+      options: chartOptions(c, { y: { title: '₹' }, y1: { title: '%', max: 100 } })
+    });
+  }
+
+  function chartOptions(c, axes){
+    return {
+      responsive: true, maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { position: 'bottom', labels: { color: c.text, font: { size: 11 }, boxWidth: 10 } },
+        tooltip: { callbacks: { label: function(ctx){
+          var v = ctx.parsed.y;
+          if (ctx.dataset.yAxisID === 'y1') return ctx.dataset.label + ': ' + v.toFixed(1) + '%';
+          return ctx.dataset.label + ': ' + fmtMoneyShort(v);
+        } } }
+      },
+      scales: {
+        x: { ticks: { color: c.text, font: { size: 10 } }, grid: { display: false } },
+        y: { position: 'left', ticks: { color: c.text, font: { size: 10 }, callback: function(v){ return fmtMoneyShort(v); } }, grid: { color: c.grid }, ...(axes.y.max ? { max: axes.y.max } : {}) },
+        y1: { position: 'right', ticks: { color: c.text, font: { size: 10 }, callback: function(v){ return axes.y1.title === '%' ? v + '%' : v; } }, grid: { display: false }, ...(axes.y1.max ? { max: axes.y1.max } : {}) }
+      }
+    };
+  }
+
+  // Simple single-axis options for the grouped-bar reports below (both
+  // series are currency, so no dual axis needed).
+  function groupedBarOptions(c){
+    return {
+      responsive: true, maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { position: 'bottom', labels: { color: c.text, font: { size: 11 }, boxWidth: 10 } },
+        tooltip: { callbacks: { label: function(ctx){ return ctx.dataset.label + ': ' + fmtMoneyShort(ctx.parsed.y); } } }
+      },
+      scales: {
+        x: { ticks: { color: c.text, font: { size: 10 } }, grid: { display: false } },
+        y: { ticks: { color: c.text, font: { size: 10 }, callback: function(v){ return fmtMoneyShort(v); } }, grid: { color: c.grid } }
+      }
+    };
+  }
+
+  function quarterKey(d){
+    if (!d) return null;
+    var q = Math.floor(d.getMonth() / 3) + 1;
+    return d.getFullYear() + '-Q' + q;
+  }
+  function quarterLabel(key){
+    if (!key) return 'Unknown';
+    var parts = key.split('-Q');
+    return 'Q' + parts[1] + ' ' + parts[0];
+  }
+
+  var expectedPeriodMode = 'month'; // toggled by the Monthly/Quarterly buttons
+
+  // Report: total expected premium of RFQs raised each month or quarter.
+  function renderExpectedByPeriodChart(){
+    var byKey = {};
+    DATA.forEach(function(d){
+      var key = expectedPeriodMode === 'quarter' ? quarterKey(d.dateOfRFQ) : monthKey(d.dateOfRFQ);
+      if (!key) return;
+      byKey[key] = (byKey[key] || 0) + d.expectedPremium;
+    });
+    var keys = Object.keys(byKey).sort();
+    var labelFn = expectedPeriodMode === 'quarter' ? quarterLabel : monthLabel;
+    var c = themeColors();
+    destroyChart('expectedByPeriod');
+    charts.expectedByPeriod = new Chart(document.getElementById('chartExpectedByPeriod'), {
+      type: 'bar',
+      data: {
+        labels: keys.map(labelFn),
+        datasets: [{ label: 'Expected Premium', data: keys.map(function(k){ return byKey[k]; }), backgroundColor: c.brandLight, borderRadius: 4 }]
+      },
+      options: groupedBarOptions(c)
+    });
+  }
+
+  // Report: for each RFQ-month cohort, expected premium vs. what of that
+  // cohort actually closed won (regardless of when it closed).
+  function renderExpectedVsClosedMonthChart(){
+    var byMonth = {};
+    DATA.forEach(function(d){
+      var key = monthKey(d.dateOfRFQ);
+      if (!key) return;
+      if (!byMonth[key]) byMonth[key] = { expected: 0, closed: 0 };
+      byMonth[key].expected += d.expectedPremium;
+      if (d.dealStatus === 'Closed Won') byMonth[key].closed += d.finalClosureAmount;
+    });
+    var keys = Object.keys(byMonth).sort();
+    var c = themeColors();
+    destroyChart('expectedVsClosedMonth');
+    charts.expectedVsClosedMonth = new Chart(document.getElementById('chartExpectedVsClosedMonth'), {
+      type: 'bar',
+      data: {
+        labels: keys.map(monthLabel),
+        datasets: [
+          { label: 'Expected Premium', data: keys.map(function(k){ return byMonth[k].expected; }), backgroundColor: c.brandLight, borderRadius: 4 },
+          { label: 'Closed Won Premium', data: keys.map(function(k){ return byMonth[k].closed; }), backgroundColor: '#22c55e', borderRadius: 4 }
+        ]
+      },
+      options: groupedBarOptions(c)
+    });
+  }
+
+  // Report: per rep, total expected premium across their book vs. total
+  // closed won premium.
+  function renderExpectedVsClosedOwnerChart(){
+    var byOwner = {};
+    DATA.forEach(function(d){
+      if (!byOwner[d.dealOwner]) byOwner[d.dealOwner] = { expected: 0, closed: 0 };
+      byOwner[d.dealOwner].expected += d.expectedPremium;
+      if (d.dealStatus === 'Closed Won') byOwner[d.dealOwner].closed += d.finalClosureAmount;
+    });
+    var keys = Object.keys(byOwner).sort();
+    var c = themeColors();
+    destroyChart('expectedVsClosedOwner');
+    charts.expectedVsClosedOwner = new Chart(document.getElementById('chartExpectedVsClosedOwner'), {
+      type: 'bar',
+      data: {
+        labels: keys,
+        datasets: [
+          { label: 'Expected Premium', data: keys.map(function(k){ return byOwner[k].expected; }), backgroundColor: c.brandLight, borderRadius: 4 },
+          { label: 'Closed Won Premium', data: keys.map(function(k){ return byOwner[k].closed; }), backgroundColor: '#22c55e', borderRadius: 4 }
+        ]
+      },
+      options: groupedBarOptions(c)
+    });
+  }
+
+  document.querySelectorAll('.periodbtn').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      expectedPeriodMode = btn.getAttribute('data-period');
+      document.querySelectorAll('.periodbtn').forEach(function(b){
+        b.classList.remove('bg-[#0055ff]', 'text-white');
+        b.classList.add('text-slate-500', 'dark:text-slate-400');
+      });
+      btn.classList.add('bg-[#0055ff]', 'text-white');
+      btn.classList.remove('text-slate-500', 'dark:text-slate-400');
+      renderExpectedByPeriodChart();
+    });
+  });
+
+  function renderAllCharts(){
+    renderBrokerChart();
+    renderTrendChart();
+    renderSplitChart();
+    renderLeaderboardChart();
+    renderExpectedByPeriodChart();
+    renderExpectedVsClosedMonthChart();
+    renderExpectedVsClosedOwnerChart();
+  }
+  window.__redrawCharts = renderAllCharts;
+
+  /* =====================================================================
+     9. DATA LOAD
+     ===================================================================== */
+  function initFromRecords(rawRecords){
+    DATA = rawRecords.map(normalizeRecord).filter(function(d){
+      return ALLOWED_OWNERS.indexOf(d.dealOwner) > -1;
+    });
+    buildMultiSelect('mselOwner', 'dealOwner');
+    buildMultiSelect('mselSource', 'dealSource');
+    buildMultiSelect('mselType', 'businessType');
+    refreshColumnFilterOptions();
+    buildMultiSelect('mselCity', 'city');
+    buildMultiSelect('mselClosureMonth', 'expectedClosureMonth', { groupByYear: true });
+    applyFilters();
+    renderKPIs();
+    renderAllCharts();
+    renderMyDeals();
+    buildNewRfqForm();
+    var now = new Date();
+    document.getElementById('asOf').textContent = 'as of ' + now.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+  }
+
+  /* =====================================================================
+     9b. NEW RFQ ENTRY — reuses the same field defs / inputs as the edit
+     modal so the two forms stay consistent.
+     ===================================================================== */
+  function buildNewRfqForm(){
+    var container = document.getElementById('newRfqFields');
+    if (!container) return;
+    var values = blankFormValues();
+    container.innerHTML = FIELD_DEFS.map(function(def){ return buildFieldHTML(def, values[def.key] || ''); }).join('');
+    wireOtherToggles(container);
+    var statusEl = document.getElementById('newRfqStatus');
+    if (statusEl) statusEl.textContent = APPS_SCRIPT_URL ? '' : 'No sheet connected — submissions are disabled until APPS_SCRIPT_URL is set.';
+  }
+
+  var newRfqForm = document.getElementById('newRfqForm');
+  if (newRfqForm) {
+    newRfqForm.addEventListener('submit', function(e){
+      e.preventDefault();
+      var payload = {};
+      FIELD_DEFS.forEach(function(def){ payload[def.header] = readFieldValue(def); });
+      if (!payload[SHEET_HEADERS.company]) { toast('Company Name is required.'); return; }
+
+      // Derive "Month of RFQ" from the chosen date, matching the sheet's own convention.
+      var dateEl = document.getElementById('field_dateOfRFQ');
+      if (dateEl && dateEl.value) {
+        var dt = new Date(dateEl.value + 'T00:00:00');
+        var MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+        payload['Month of RFQ'] = MON[dt.getMonth()] + '-' + dt.getFullYear();
+      }
+
+      var statusEl = document.getElementById('newRfqStatus');
+      var submitBtn = document.getElementById('newRfqSubmit');
+      if (!APPS_SCRIPT_URL) {
+        statusEl.textContent = 'No sheet connected — cannot submit.';
+        toast('Connect the Apps Script URL before submitting new RFQs.');
+        return;
+      }
+      statusEl.textContent = 'Submitting…';
+      submitBtn.disabled = true;
+      postToSheet('add', payload).then(function(result){
+        var newRaw = Object.assign({}, payload, { '_row': result.row });
+        DATA = DATA.concat([normalizeRecord(newRaw)]).filter(function(d){
+          return ALLOWED_OWNERS.indexOf(d.dealOwner) > -1;
+        });
+        buildMultiSelect('mselOwner', 'dealOwner');
+        buildMultiSelect('mselSource', 'dealSource');
+        buildMultiSelect('mselType', 'businessType');
+        refreshColumnFilterOptions();
+        buildMultiSelect('mselCity', 'city');
+        buildMultiSelect('mselClosureMonth', 'expectedClosureMonth', { groupByYear: true });
+        applyFilters(); renderKPIs(); renderAllCharts(); renderMyDeals();
+        statusEl.textContent = 'Submitted — row ' + result.row + ' added to the sheet.';
+        toast('New RFQ added to the sheet.');
+        buildNewRfqForm();
+      }).catch(function(err){
+        statusEl.textContent = 'Error: ' + err.message;
+        toast('Could not submit: ' + err.message);
+      }).finally(function(){ submitBtn.disabled = false; });
+    });
+    document.getElementById('newRfqReset').addEventListener('click', function(){ buildNewRfqForm(); });
+  }
+
+  /* =====================================================================
+     9c. MY DEALS — per-rep daily view: pick a name, see just that
+     person's pipeline, KPIs, and upcoming/lost reports.
+     ===================================================================== */
+  var myDealsOwner = null;
+  var myDealsPeriodMode = 'month';
+  var upcomingPeriodGroups = {};       // periodKey -> { count, value, deals } — set by renderMyDeals, read by openPeriodListModal
+  var upcomingPeriodLabelFn = function(k){ return k; };
+
+  // Drill-down from an Upcoming Closures row: lists every lead in that
+  // period with the fields a rep would need to work them, reusing the same
+  // modal shell as the single-deal view (read-only — Edit still opens the
+  // full single-deal editor).
+  function openPeriodListModal(periodKey){
+    var group = upcomingPeriodGroups[periodKey];
+    if (!group) return;
+    editingRow = null;
+    document.getElementById('modalCompany').textContent = upcomingPeriodLabelFn(periodKey) + ' — ' + group.count + ' deal' + (group.count === 1 ? '' : 's');
+    document.getElementById('modalSub').textContent = fmtMoney(group.value) + ' total expected premium';
+    var deals = group.deals.slice().sort(function(a, b){ return b.expectedPremium - a.expectedPremium; });
+    var body = document.getElementById('modalBody');
+    body.innerHTML = '<div class="overflow-x-auto -mx-5 px-5"><table class="min-w-full text-xs">' +
+      '<thead><tr>' +
+        '<th class="text-left px-2 py-1.5 font-medium text-slate-500 dark:text-slate-400">Company</th>' +
+        '<th class="text-left px-2 py-1.5 font-medium text-slate-500 dark:text-slate-400">Type</th>' +
+        '<th class="text-left px-2 py-1.5 font-medium text-slate-500 dark:text-slate-400">Source / Broker</th>' +
+        '<th class="text-right px-2 py-1.5 font-medium text-slate-500 dark:text-slate-400">Expected Premium</th>' +
+        '<th class="text-left px-2 py-1.5 font-medium text-slate-500 dark:text-slate-400">Stage</th>' +
+        '<th class="text-left px-2 py-1.5 font-medium text-slate-500 dark:text-slate-400">Temp</th>' +
+        '<th class="text-left px-2 py-1.5 font-medium text-slate-500 dark:text-slate-400">RFQ Date</th>' +
+        '<th class="text-center px-2 py-1.5 font-medium text-slate-500 dark:text-slate-400">Edit</th>' +
+      '</tr></thead><tbody>' +
+      deals.map(function(d){
+        var c = STATUS_COLORS[d.dealStatus] || { chip:'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300' };
+        return '<tr class="border-t border-slate-100 dark:border-slate-800">' +
+          '<td class="px-2 py-1.5 font-medium">' + escapeHTML(d.company) + '</td>' +
+          '<td class="px-2 py-1.5">' + escapeHTML(d.businessType) + '</td>' +
+          '<td class="px-2 py-1.5 text-slate-500 dark:text-slate-400">' + escapeHTML(d.broker || d.dealSource) + '</td>' +
+          '<td class="px-2 py-1.5 text-right tabular-nums">' + fmtMoney(d.expectedPremium) + '</td>' +
+          '<td class="px-2 py-1.5"><span class="chip ' + c.chip + '">' + escapeHTML(d.dealStatus) + '</span></td>' +
+          '<td class="px-2 py-1.5">' + (d.temperature ? '<span class="chip ' + TEMP_COLORS[d.temperature] + '">' + d.temperature + '</span>' : '—') + '</td>' +
+          '<td class="px-2 py-1.5 text-slate-500 dark:text-slate-400">' + fmtDate(d.dateOfRFQ) + '</td>' +
+          '<td class="px-2 py-1.5 text-center"><button data-edit="' + d._row + '" class="text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 text-[11px]">✎ Edit</button></td>' +
+        '</tr>';
+      }).join('') +
+      '</tbody></table></div>';
+    body.querySelectorAll('[data-edit]').forEach(function(btn){
+      btn.addEventListener('click', function(){ openEditModal(btn.getAttribute('data-edit')); });
+    });
+    document.getElementById('modalFooter').classList.add('hidden');
+    document.getElementById('modalBackdrop').classList.add('open');
+  }
+
+  function renderOwnerPicker(){
+    var picker = document.getElementById('myDealsOwnerPicker');
+    if (!picker) return;
+    picker.innerHTML = ALLOWED_OWNERS.map(function(o){
+      var active = o === myDealsOwner;
+      return '<button data-owner="' + escapeHTML(o) + '" class="my-owner-btn px-3 py-1.5 text-xs font-medium rounded-md ' +
+        (active ? 'bg-[#0055ff] text-white' : 'text-slate-500 dark:text-slate-400') + '">' + escapeHTML(o) + '</button>';
+    }).join('');
+    picker.querySelectorAll('.my-owner-btn').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        myDealsOwner = btn.getAttribute('data-owner');
+        renderMyDeals();
+      });
+    });
+  }
+
+  document.querySelectorAll('.mdperiodbtn').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      myDealsPeriodMode = btn.getAttribute('data-mdperiod');
+      document.querySelectorAll('.mdperiodbtn').forEach(function(b){
+        b.classList.remove('bg-[#0055ff]', 'text-white');
+        b.classList.add('text-slate-500', 'dark:text-slate-400');
+      });
+      btn.classList.add('bg-[#0055ff]', 'text-white');
+      btn.classList.remove('text-slate-500', 'dark:text-slate-400');
+      renderMyDeals();
+    });
+  });
+
+  function renderMyDeals(){
+    renderOwnerPicker();
+    var empty = document.getElementById('myDealsEmpty');
+    var content = document.getElementById('myDealsContent');
+    if (!empty || !content) return;
+    if (!myDealsOwner) { empty.classList.remove('hidden'); content.classList.add('hidden'); return; }
+    empty.classList.add('hidden'); content.classList.remove('hidden');
+
+    var mine = DATA.filter(function(d){ return d.dealOwner === myDealsOwner; });
+    var openStatuses = OPEN_STAGES; // includes Not Working — used for the closure-date groupings below
+    var open = mine.filter(function(d){ return OPEN_STAGES.indexOf(d.dealStatus) > -1 && d.dealStatus !== 'Not Working'; });
+    var won = mine.filter(function(d){ return d.dealStatus === 'Closed Won'; });
+    var lost = mine.filter(function(d){ return d.dealStatus === 'Closed Lost'; });
+    var pipelineValue = open.reduce(function(s,d){ return s + d.expectedPremium; }, 0); // active pipeline: open deals only, excl. Won & Lost
+    var closedPremium = won.reduce(function(s,d){ return s + d.finalClosureAmount; }, 0);
+    var winRate = (won.length + lost.length) ? (won.length / (won.length + lost.length) * 100) : 0;
+    var lostValue = lost.reduce(function(s,d){ return s + d.expectedPremium; }, 0);
+
+    document.getElementById('myDealsKpis').innerHTML = [
+      { label: 'My Total Deals', value: String(mine.length) },
+      { label: 'My Active Pipeline', value: fmtMoneyShort(pipelineValue), sub: open.length + ' open deals' },
+      { label: 'My Closed Won', value: fmtMoneyShort(closedPremium), sub: won.length + ' deals' },
+      { label: 'My Closed Lost', value: fmtMoneyShort(lostValue), sub: lost.length + ' deals' },
+      { label: 'My Win Rate', value: winRate.toFixed(1) + '%' }
+    ].map(function(c){
+      return '<div class="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">' +
+        '<div class="text-[11px] font-medium text-slate-400 dark:text-slate-500">' + c.label + '</div>' +
+        '<div class="text-xl font-semibold mt-1">' + c.value + '</div>' +
+        (c.sub ? '<div class="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">' + c.sub + '</div>' : '') +
+      '</div>';
+    }).join('');
+
+    // ---- Split open deals into Lapsed (before this month) vs Upcoming (this month or later) ----
+    var openForClosureAll = mine.filter(function(d){ return openStatuses.indexOf(d.dealStatus) > -1; });
+    var curIdx = currentMonthIndex();
+    var lapsedDeals = openForClosureAll.filter(function(d){
+      var idx = monthIndexFromLabel(d.expectedClosureMonth);
+      return idx !== null && idx < curIdx;
+    });
+    var openForClosure = openForClosureAll.filter(function(d){
+      var idx = monthIndexFromLabel(d.expectedClosureMonth);
+      return idx === null || idx >= curIdx;
+    });
+
+    // ---- Upcoming Closures — month or quarter wise, current month onward only ----
+    var groups = {};
+    openForClosure.forEach(function(d){
+      var label = d.expectedClosureMonth || 'Unspecified';
+      var key = label;
+      if (myDealsPeriodMode === 'quarter' && label !== 'Unspecified') {
+        var p = parseMonthYearLabel(label);
+        key = p ? (p.year + '-Q' + (Math.floor(p.month / 3) + 1)) : 'Unspecified';
+      }
+      if (!groups[key]) groups[key] = { count: 0, value: 0, deals: [] };
+      groups[key].count++;
+      groups[key].value += d.expectedPremium;
+      groups[key].deals.push(d);
+    });
+    upcomingPeriodGroups = groups; // stashed at module scope so clicking a row can look up its deals
+    var periodKeys = Object.keys(groups).sort(function(a, b){
+      if (a === 'Unspecified') return 1;
+      if (b === 'Unspecified') return -1;
+      if (myDealsPeriodMode === 'quarter') {
+        var pa = a.split('-Q'), pb = b.split('-Q');
+        return (Number(pa[0]) - Number(pb[0])) || (Number(pa[1]) - Number(pb[1]));
+      }
+      var ma = parseMonthYearLabel(a), mb = parseMonthYearLabel(b);
+      if (ma && mb) return (ma.year - mb.year) || (ma.month - mb.month);
+      return a.localeCompare(b);
+    });
+    var periodLabelFn = function(k){
+      if (k === 'Unspecified' || myDealsPeriodMode !== 'quarter') return k;
+      var parts = k.split('-Q');
+      return 'Q' + parts[1] + ' ' + parts[0];
+    };
+    upcomingPeriodLabelFn = periodLabelFn; // reused by the drill-down modal's title
+    var upcomingBody = document.getElementById('myDealsUpcomingBody');
+    upcomingBody.innerHTML = periodKeys.length
+      ? periodKeys.map(function(k){
+          return '<tr data-period="' + escapeHTML(k) + '" class="border-t border-slate-100 dark:border-slate-800 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50">' +
+            '<td class="px-3 py-2 font-medium text-[#0055ff] hover:underline">' + escapeHTML(periodLabelFn(k)) + '</td>' +
+            '<td class="px-3 py-2 text-right tabular-nums">' + groups[k].count + '</td>' +
+            '<td class="px-3 py-2 text-right tabular-nums">' + fmtMoney(groups[k].value) + '</td>' +
+          '</tr>';
+        }).join('')
+      : '<tr><td colspan="3" class="px-3 py-4 text-center text-slate-400 text-[11px]">No open deals with an expected closure date this month or later.</td></tr>';
+    upcomingBody.querySelectorAll('[data-period]').forEach(function(tr){
+      tr.addEventListener('click', function(){ openPeriodListModal(tr.getAttribute('data-period')); });
+    });
+
+    // ---- Lapsed Pipeline — open deals whose expected closure already passed ----
+    var lapsedValue = lapsedDeals.reduce(function(s,d){ return s + d.expectedPremium; }, 0);
+    document.getElementById('myDealsLapsedTotal').textContent = lapsedDeals.length + ' deals · ' + fmtMoneyShort(lapsedValue) + ' total expected value';
+    var lapsedSorted = lapsedDeals.slice().sort(function(a, b){
+      return monthIndexFromLabel(a.expectedClosureMonth) - monthIndexFromLabel(b.expectedClosureMonth); // most overdue first
+    });
+    document.getElementById('myDealsLapsedBody').innerHTML = lapsedSorted.length
+      ? lapsedSorted.map(function(d){
+          var c = STATUS_COLORS[d.dealStatus] || { chip:'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300' };
+          return '<tr class="border-t border-slate-100 dark:border-slate-800">' +
+            '<td class="px-3 py-2 font-medium">' + escapeHTML(d.company) + '</td>' +
+            '<td class="px-3 py-2 text-right tabular-nums">' + fmtMoney(d.expectedPremium) + '</td>' +
+            '<td class="px-3 py-2 text-amber-700 dark:text-amber-300">' + escapeHTML(d.expectedClosureMonth) + '</td>' +
+            '<td class="px-3 py-2"><span class="chip ' + c.chip + '">' + escapeHTML(d.dealStatus) + '</span></td>' +
+            '<td class="px-3 py-2 text-center"><button data-edit="' + d._row + '" class="text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 text-[11px]">✎ Edit</button></td>' +
+          '</tr>';
+        }).join('')
+      : '<tr><td colspan="5" class="px-3 py-4 text-center text-slate-400 text-[11px]">No lapsed deals — nothing overdue.</td></tr>';
+
+    // ---- Closed Lost report ----
+    document.getElementById('myDealsLostTotal').textContent = lost.length + ' deals · ' + fmtMoneyShort(lostValue) + ' total expected value';
+    var lostSorted = lost.slice().sort(function(a, b){
+      var at = a.closureDate ? a.closureDate.getTime() : 0, bt = b.closureDate ? b.closureDate.getTime() : 0;
+      return bt - at;
+    });
+    document.getElementById('myDealsLostBody').innerHTML = lostSorted.length
+      ? lostSorted.map(function(d){
+          return '<tr class="border-t border-slate-100 dark:border-slate-800">' +
+            '<td class="px-3 py-2 font-medium">' + escapeHTML(d.company) + '</td>' +
+            '<td class="px-3 py-2 text-right tabular-nums">' + fmtMoney(d.expectedPremium) + '</td>' +
+            '<td class="px-3 py-2 text-slate-500 dark:text-slate-400">' + fmtDate(d.closureDate) + '</td>' +
+            '<td class="px-3 py-2 text-slate-500 dark:text-slate-400">' + escapeHTML(d.remarks || '—') + '</td>' +
+          '</tr>';
+        }).join('')
+      : '<tr><td colspan="4" class="px-3 py-4 text-center text-slate-400 text-[11px]">No closed lost deals.</td></tr>';
+
+    var sorted = mine.slice().sort(function(a, b){
+      var at = a.dateOfRFQ ? a.dateOfRFQ.getTime() : 0, bt = b.dateOfRFQ ? b.dateOfRFQ.getTime() : 0;
+      return bt - at;
+    });
+    document.getElementById('myDealsTableBody').innerHTML = sorted.map(function(d){
+      var c = STATUS_COLORS[d.dealStatus] || { chip:'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300' };
+      return '<tr class="border-t border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50">' +
+        '<td class="px-3 py-2 font-medium">' + escapeHTML(d.company) + '</td>' +
+        '<td class="px-3 py-2">' + escapeHTML(d.businessType) + '</td>' +
+        '<td class="px-3 py-2 text-slate-500 dark:text-slate-400">' + escapeHTML(d.broker || d.dealSource) + '</td>' +
+        '<td class="px-3 py-2 text-right tabular-nums">' + fmtMoney(d.expectedPremium) + '</td>' +
+        '<td class="px-3 py-2"><span class="chip ' + c.chip + '">' + escapeHTML(d.dealStatus) + '</span></td>' +
+        '<td class="px-3 py-2 text-slate-500 dark:text-slate-400">' + fmtDate(d.dateOfRFQ) + '</td>' +
+        '<td class="px-3 py-2 text-center"><button data-details="' + d._row + '" class="text-[#0055ff] hover:underline text-[11px]">View</button></td>' +
+        '<td class="px-3 py-2 text-center"><button data-edit="' + d._row + '" class="text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 text-[11px]">✎ Edit</button></td>' +
+      '</tr>';
+    }).join('');
+
+    var myDealsTbody = document.getElementById('myDealsTableBody');
+    myDealsTbody.querySelectorAll('[data-details]').forEach(function(btn){ btn.addEventListener('click', function(){ openModal(btn.getAttribute('data-details')); }); });
+    myDealsTbody.querySelectorAll('[data-edit]').forEach(function(btn){ btn.addEventListener('click', function(){ openEditModal(btn.getAttribute('data-edit')); }); });
+
+    var myDealsLapsedTbody = document.getElementById('myDealsLapsedBody');
+    myDealsLapsedTbody.querySelectorAll('[data-edit]').forEach(function(btn){ btn.addEventListener('click', function(){ openEditModal(btn.getAttribute('data-edit')); }); });
+  }
+
+  function loadLiveData(){
+    if (!APPS_SCRIPT_URL) return;
+    var cbName = '__dashDataCB_' + Date.now();
+    var script = document.createElement('script');
+    var timeout = setTimeout(function(){
+      cleanup();
+      setDataBadge('error');
+      toast('Could not reach the sheet feed — showing sample data.');
+    }, 12000);
+
+    function cleanup(){
+      clearTimeout(timeout);
+      delete window[cbName];
+      if (script.parentNode) script.parentNode.removeChild(script);
+    }
+
+    window[cbName] = function(payload){
+      cleanup();
+      if (!payload || payload.error) {
+        setDataBadge('error');
+        toast('Sheet feed error: ' + (payload && payload.error ? payload.error : 'unknown'));
+        return;
+      }
+      initFromRecords(payload.rows || []);
+      var fetchedLabel = payload.fetchedAt ? new Date(payload.fetchedAt).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) : '';
+      setDataBadge('live', fetchedLabel ? ('refreshed ' + fetchedLabel) : '');
+    };
+    script.onerror = function(){ cleanup(); setDataBadge('error'); toast('Could not reach the sheet feed — showing sample data.'); };
+    script.src = APPS_SCRIPT_URL + (APPS_SCRIPT_URL.indexOf('?')>-1?'&':'?') + 'callback=' + cbName;
+    document.head.appendChild(script);
+  }
+
+  /* =====================================================================
+     10. TABS
+     ===================================================================== */
+  document.querySelectorAll('[data-tab]').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      document.querySelectorAll('[data-tab]').forEach(function(b){
+        b.classList.remove('border-[#0055ff]', 'text-[#0055ff]');
+        b.classList.add('border-transparent', 'text-slate-500', 'dark:text-slate-400');
+      });
+      btn.classList.add('border-[#0055ff]', 'text-[#0055ff]');
+      btn.classList.remove('border-transparent', 'text-slate-500', 'dark:text-slate-400');
+      document.querySelectorAll('[data-panel]').forEach(function(p){ p.classList.remove('active'); });
+      document.querySelector('[data-panel="' + btn.dataset.tab + '"]').classList.add('active');
+    });
+  });
+
+  document.querySelectorAll('[data-subtab]').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      subTab = btn.dataset.subtab;
+      document.querySelectorAll('[data-subtab]').forEach(function(b){
+        b.classList.remove('bg-[#0055ff]', 'text-white');
+        b.classList.add('text-slate-500', 'dark:text-slate-400');
+      });
+      btn.classList.add('bg-[#0055ff]', 'text-white');
+      btn.classList.remove('text-slate-500', 'dark:text-slate-400');
+      document.querySelectorAll('[data-subpanel]').forEach(function(p){ p.classList.remove('active'); });
+      document.querySelector('[data-subpanel="' + subTab + '"]').classList.add('active');
+    });
+  });
+
+  /* ---------------- theme toggle ---------------- */
+  var themeBtn = document.getElementById('themeToggle');
+  function paintThemeBtn(){ themeBtn.textContent = document.documentElement.classList.contains('dark') ? '☀️' : '🌙'; }
+  paintThemeBtn();
+  themeBtn.addEventListener('click', function(){
+    var goingDark = !document.documentElement.classList.contains('dark');
+    document.documentElement.setAttribute('data-theme', goingDark ? 'dark' : 'light');
+    applyTheme();
+    paintThemeBtn();
+  });
+
+  /* ---------------- optional logo easter egg ---------------- */
+  var logoBtn = document.getElementById('logoBtn');
+  if (logoBtn && window.confetti) {
+    logoBtn.addEventListener('click', function(){
+      confetti({ particleCount: 90, spread: 72, startVelocity: 40, gravity: 0.9,
+        colors: ['#0055ff', '#60a5fa', '#93c5fd'] });
+      logoBtn.classList.add('animate-pop');
+      setTimeout(function(){ logoBtn.classList.remove('animate-pop'); }, 500);
+    });
+  }
+
+  try { initFromRecords(SAMPLE_RAW); } catch (e) { console.error('Initial render failed:', e); }
+  loadLiveData();
+
+})();
+</script>
+</body>
+</html>
