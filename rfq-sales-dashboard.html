@@ -1351,8 +1351,9 @@
     if (def.type === 'select') {
       var opts = def.staticOptions ? def.staticOptions.slice() : uniqueValues(def.optionsField).filter(function(o){ return o !== 'Unspecified' && o !== 'Unassigned'; });
       if (value && opts.indexOf(value) === -1) opts.push(value);
+      if (opts.indexOf('') === -1) opts.unshift(''); // always offer a real "nothing selected" choice
       var optionsHTML = opts.map(function(o){
-        return '<option value="' + escapeHTML(o) + '"' + (o === value ? ' selected' : '') + '>' + (o || '(blank)') + '</option>';
+        return '<option value="' + escapeHTML(o) + '"' + (o === value ? ' selected' : '') + '>' + (o || '— Select —') + '</option>';
       }).join('');
       if (def.allowOther) optionsHTML += '<option value="__other__">+ Add new value…</option>';
       var html = '<div><label class="block text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-1">' + def.label + '</label>' +
