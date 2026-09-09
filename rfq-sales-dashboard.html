@@ -1320,7 +1320,7 @@
   // escape hatch) since that vocabulary evolves over time.
   var FIELD_DEFS = [
     { key:'company', header: SHEET_HEADERS.company, label:'Company Name', type:'text', required:true },
-    { key:'city', header: SHEET_HEADERS.city, label:'City', type:'text' },
+    { key:'city', header: SHEET_HEADERS.city, label:'City', type:'select', optionsField:'city', allowOther:true },
     { key:'employees', header: SHEET_HEADERS.employees, label:'Number of Employees', type:'number' },
     { key:'dateOfRFQ', header: SHEET_HEADERS.dateOfRFQ, label:'Date of RFQ', type:'date' },
     { key:'closureDate', header: SHEET_HEADERS.closureDate, label:'Closure Date', type:'date' },
