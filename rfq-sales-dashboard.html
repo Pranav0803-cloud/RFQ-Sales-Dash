@@ -819,21 +819,45 @@
     }
   }
 
-  /* ---------------- write-back (POST), unused unless an editable view is added later ---------------- */
+  /* ---------------- write-back, via the same JSONP <script> trick reads
+     use — a real fetch() POST from a non-Google origin (like GitHub Pages)
+     gets blocked by CORS before the response can be read, which surfaces
+     to the user as a generic "Failed to fetch". A <script src="..."> tag
+     isn't subject to CORS, so writes go out as a GET with action/data/
+     sheetRow in the query string instead. ---------------- */
   function postToSheet(action, data, sheetRow){
     if (!APPS_SCRIPT_URL) return Promise.reject(new Error('No Apps Script URL configured.'));
-    var body = { action: action, data: data };
-    if (sheetRow !== undefined && sheetRow !== null) body.sheetRow = sheetRow;
-    return fetch(APPS_SCRIPT_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify(body)
-    }).then(function(res){
-      if (!res.ok) throw new Error('HTTP ' + res.status + ' from Apps Script');
-      return res.json().catch(function(){ throw new Error('Apps Script did not return JSON — is doPost deployed?'); });
-    }).then(function(json){
-      if (!json || json.ok !== true) throw new Error((json && json.error) || 'Apps Script reported an error');
-      return json;
+    return new Promise(function(resolve, reject){
+      var cbName = '__writeCB_' + Date.now() + '_' + Math.floor(Math.random() * 1e6);
+      var script = document.createElement('script');
+      var timeout = setTimeout(function(){
+        cleanup();
+        reject(new Error('Request timed out — the sheet may be slow to respond, or the Apps Script URL/deployment access needs checking.'));
+      }, 15000);
+
+      function cleanup(){
+        clearTimeout(timeout);
+        delete window[cbName];
+        if (script.parentNode) script.parentNode.removeChild(script);
+      }
+
+      window[cbName] = function(result){
+        cleanup();
+        if (!result || result.ok !== true) {
+          reject(new Error((result && result.error) || 'Apps Script reported an error'));
+          return;
+        }
+        resolve(result);
+      };
+      script.onerror = function(){
+        cleanup();
+        reject(new Error('Could not reach the sheet feed — check the Apps Script URL and that the deployment is set to "Anyone".'));
+      };
+
+      var params = 'action=' + encodeURIComponent(action) + '&data=' + encodeURIComponent(JSON.stringify(data)) + '&callback=' + cbName;
+      if (sheetRow !== undefined && sheetRow !== null) params += '&sheetRow=' + encodeURIComponent(sheetRow);
+      script.src = APPS_SCRIPT_URL + (APPS_SCRIPT_URL.indexOf('?') > -1 ? '&' : '?') + params;
+      document.head.appendChild(script);
     });
   }
 
