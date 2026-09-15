@@ -2172,7 +2172,7 @@
   // self-heals once the underlying issue clears — the red badge is also
   // clickable for an immediate manual retry.
   var liveLoadAttempts = 0;
-  var MAX_LIVE_LOAD_ATTEMPTS = 3;
+  var MAX_LIVE_LOAD_ATTEMPTS = 5;
   var backgroundRetryTimer = null;
 
   function scheduleBackgroundRetry(){
@@ -2181,8 +2181,10 @@
       backgroundRetryTimer = null;
       liveLoadAttempts = 0;
       loadLiveData();
-    }, 60000);
+    }, 30000);
   }
+
+  var RETRY_DELAYS = [3000, 6000, 12000, 12000]; // backs off across attempts — cold starts often need the extra room
 
   function loadLiveData(){
     if (!APPS_SCRIPT_URL) return;
@@ -2191,7 +2193,7 @@
     var timeout = setTimeout(function(){
       cleanup();
       handleLoadFailure();
-    }, 18000);
+    }, 20000);
 
     function cleanup(){
       clearTimeout(timeout);
@@ -2203,10 +2205,10 @@
       liveLoadAttempts++;
       if (liveLoadAttempts < MAX_LIVE_LOAD_ATTEMPTS) {
         setDataBadge('retrying', 'attempt ' + (liveLoadAttempts + 1) + ' of ' + MAX_LIVE_LOAD_ATTEMPTS);
-        setTimeout(loadLiveData, 2500);
+        setTimeout(loadLiveData, RETRY_DELAYS[liveLoadAttempts - 1] || 12000);
       } else {
         setDataBadge('error');
-        toast('Could not reach the sheet feed after ' + MAX_LIVE_LOAD_ATTEMPTS + ' tries' + (errMsg ? ' (' + errMsg + ')' : '') + ' — showing sample data. It will keep retrying in the background, or click the badge to retry now.');
+        toast('Could not reach the sheet feed after ' + MAX_LIVE_LOAD_ATTEMPTS + ' tries' + (errMsg ? ' (' + errMsg + ')' : '') + ' — showing the last cached data where available. Retrying quietly in the background, or click the badge to retry now.');
         scheduleBackgroundRetry();
       }
     }
@@ -2219,6 +2221,7 @@
       }
       liveLoadAttempts = 0;
       initFromRecords(payload.rows || []);
+      saveCache(payload);
       var fetchedLabel = payload.fetchedAt ? new Date(payload.fetchedAt).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) : '';
       setDataBadge('live', fetchedLabel ? ('refreshed ' + fetchedLabel) : '');
     };
@@ -2279,7 +2282,34 @@
     });
   }
 
-  try { initFromRecords(SAMPLE_RAW); } catch (e) { console.error('Initial render failed:', e); }
+  // Caches the last successful live payload so that a transient failure
+  // shows slightly-stale REAL data instead of obviously-fake sample data —
+  // the dashboard still keeps retrying live in the background regardless.
+  var CACHE_KEY = 'rfqDashboardCache_v1';
+  function saveCache(payload){
+    try { localStorage.setItem(CACHE_KEY, JSON.stringify({ rows: payload.rows, fetchedAt: payload.fetchedAt })); }
+    catch (e) { /* localStorage unavailable (private browsing, quota, etc.) — fine to skip */ }
+  }
+  function loadCache(){
+    try {
+      var raw = localStorage.getItem(CACHE_KEY);
+      return raw ? JSON.parse(raw) : null;
+    } catch (e) { return null; }
+  }
+
+  var cached = loadCache();
+  if (cached && cached.rows && cached.rows.length) {
+    try {
+      initFromRecords(cached.rows);
+      var cachedLabel = cached.fetchedAt ? new Date(cached.fetchedAt).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) : '';
+      setDataBadge('retrying', cachedLabel ? ('showing cache from ' + cachedLabel) : 'showing cached data');
+    } catch (e) {
+      console.error('Cached render failed:', e);
+      try { initFromRecords(SAMPLE_RAW); } catch (e2) { console.error('Initial render failed:', e2); }
+    }
+  } else {
+    try { initFromRecords(SAMPLE_RAW); } catch (e) { console.error('Initial render failed:', e); }
+  }
   loadLiveData();
 
 })();
