@@ -447,7 +447,7 @@
   };
   // This dashboard is scoped to just these three reps' books of business —
   // everyone else's deals are excluded before anything else renders.
-  var ALLOWED_OWNERS = ['Jayshree', 'Akash Kiran', 'Rishav'];
+  var ALLOWED_OWNERS = ['Jayshree', 'Akash Kiran', 'Rishav', 'Dinesh', 'Aparna', 'Yashas'];
   var MONTH_NAMES = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
   var MONTH_ABBR = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
@@ -720,7 +720,7 @@
     var companies = ['Aster Manufacturing','Zenith Retail Group','Copperline Steel','Ivory Consulting','Falcon Freight','Marigold Hospitality','Quantum Devices','Silverleaf Pharma','Redwood Realty','Brightwave Media','Alpine Autoparts','Cedarline Chemicals','Novagen Diagnostics','Lakeshore Motors','Ember Energy','Trueline Insurance Services','Pinehill Foods','Crestview Capital','Orbit Telecom','Havenfield Agro'];
     var cities = ['Bengaluru','Mumbai','Delhi','Pune','Chennai','Hyderabad','Gurgaon','Kolkata'];
     var brokers = ['Nova','Digit','HS','Paz','Marsh','Prudent','', ''];
-    var owners = ['Jayshree','Akash Kiran','Rishav'];
+    var owners = ALLOWED_OWNERS.slice();
     var types = ['Fresh','Rollover','Renewal'];
     // Target kanban stages, matching the real sheet's current convention:
     // "Deal Status" holds the stage/outcome text, "Sub-Status" holds the
