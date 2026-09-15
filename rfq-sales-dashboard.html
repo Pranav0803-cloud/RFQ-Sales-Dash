@@ -807,17 +807,35 @@
   /* ---------------- data badge ---------------- */
   function setDataBadge(state, note){
     var el = document.getElementById('dataBadge');
+    el.dataset.state = state;
     if (state === 'live') {
       el.className = 'inline-flex items-center gap-1.5 rounded-full border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 text-[11px] font-medium px-3 py-1';
       el.innerHTML = '<span class="h-1.5 w-1.5 rounded-full bg-emerald-500"></span> Live' + (note ? ' — ' + note : '');
+      el.style.cursor = 'default';
+      el.title = '';
+    } else if (state === 'retrying') {
+      el.className = 'inline-flex items-center gap-1.5 rounded-full border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 text-[11px] font-medium px-3 py-1';
+      el.innerHTML = '<span class="h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse"></span> Reconnecting' + (note ? ' — ' + note : '') + '…';
+      el.style.cursor = 'default';
+      el.title = '';
     } else if (state === 'error') {
-      el.className = 'inline-flex items-center gap-1.5 rounded-full border border-rose-200 dark:border-rose-800 bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 text-[11px] font-medium px-3 py-1';
-      el.innerHTML = '<span class="h-1.5 w-1.5 rounded-full bg-rose-500"></span> Feed error — showing sample data';
+      el.className = 'inline-flex items-center gap-1.5 rounded-full border border-rose-200 dark:border-rose-800 bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 text-[11px] font-medium px-3 py-1 cursor-pointer hover:bg-rose-100 dark:hover:bg-rose-900/40';
+      el.innerHTML = '<span class="h-1.5 w-1.5 rounded-full bg-rose-500"></span> Feed error — showing sample data <span class="underline">(click to retry)</span>';
+      el.style.cursor = 'pointer';
+      el.title = 'Click to retry connecting to the sheet';
     } else {
       el.className = 'inline-flex items-center gap-1.5 rounded-full border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 text-[11px] font-medium px-3 py-1';
       el.innerHTML = '<span class="h-1.5 w-1.5 rounded-full bg-amber-500"></span> Sample data — sheet not connected';
+      el.style.cursor = 'default';
+      el.title = '';
     }
   }
+  document.getElementById('dataBadge').addEventListener('click', function(){
+    if (this.dataset.state !== 'error') return;
+    liveLoadAttempts = 0;
+    if (backgroundRetryTimer) { clearTimeout(backgroundRetryTimer); backgroundRetryTimer = null; }
+    loadLiveData();
+  });
 
   /* ---------------- write-back, via the same JSONP <script> trick reads
      use — a real fetch() POST from a non-Google origin (like GitHub Pages)
@@ -2145,15 +2163,35 @@
     myDealsLapsedTbody.querySelectorAll('[data-edit]').forEach(function(btn){ btn.addEventListener('click', function(){ openEditModal(btn.getAttribute('data-edit')); }); });
   }
 
+  // The dashboard used to try the live feed exactly once on page load — if
+  // that single attempt failed (a slow Apps Script cold start, a transient
+  // network blip, momentary quota contention), the badge stayed on "Feed
+  // error" for the rest of the session with no way to recover short of a
+  // manual reload. This now retries a few times with a short delay, and if
+  // it still can't connect, keeps quietly retrying in the background so it
+  // self-heals once the underlying issue clears — the red badge is also
+  // clickable for an immediate manual retry.
+  var liveLoadAttempts = 0;
+  var MAX_LIVE_LOAD_ATTEMPTS = 3;
+  var backgroundRetryTimer = null;
+
+  function scheduleBackgroundRetry(){
+    if (backgroundRetryTimer) return;
+    backgroundRetryTimer = setTimeout(function(){
+      backgroundRetryTimer = null;
+      liveLoadAttempts = 0;
+      loadLiveData();
+    }, 60000);
+  }
+
   function loadLiveData(){
     if (!APPS_SCRIPT_URL) return;
-    var cbName = '__dashDataCB_' + Date.now();
+    var cbName = '__dashDataCB_' + Date.now() + '_' + Math.floor(Math.random() * 1e6);
     var script = document.createElement('script');
     var timeout = setTimeout(function(){
       cleanup();
-      setDataBadge('error');
-      toast('Could not reach the sheet feed — showing sample data.');
-    }, 12000);
+      handleLoadFailure();
+    }, 18000);
 
     function cleanup(){
       clearTimeout(timeout);
@@ -2161,18 +2199,30 @@
       if (script.parentNode) script.parentNode.removeChild(script);
     }
 
+    function handleLoadFailure(errMsg){
+      liveLoadAttempts++;
+      if (liveLoadAttempts < MAX_LIVE_LOAD_ATTEMPTS) {
+        setDataBadge('retrying', 'attempt ' + (liveLoadAttempts + 1) + ' of ' + MAX_LIVE_LOAD_ATTEMPTS);
+        setTimeout(loadLiveData, 2500);
+      } else {
+        setDataBadge('error');
+        toast('Could not reach the sheet feed after ' + MAX_LIVE_LOAD_ATTEMPTS + ' tries' + (errMsg ? ' (' + errMsg + ')' : '') + ' — showing sample data. It will keep retrying in the background, or click the badge to retry now.');
+        scheduleBackgroundRetry();
+      }
+    }
+
     window[cbName] = function(payload){
       cleanup();
       if (!payload || payload.error) {
-        setDataBadge('error');
-        toast('Sheet feed error: ' + (payload && payload.error ? payload.error : 'unknown'));
+        handleLoadFailure(payload && payload.error);
         return;
       }
+      liveLoadAttempts = 0;
       initFromRecords(payload.rows || []);
       var fetchedLabel = payload.fetchedAt ? new Date(payload.fetchedAt).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) : '';
       setDataBadge('live', fetchedLabel ? ('refreshed ' + fetchedLabel) : '');
     };
-    script.onerror = function(){ cleanup(); setDataBadge('error'); toast('Could not reach the sheet feed — showing sample data.'); };
+    script.onerror = function(){ cleanup(); handleLoadFailure('network error'); };
     script.src = APPS_SCRIPT_URL + (APPS_SCRIPT_URL.indexOf('?')>-1?'&':'?') + 'callback=' + cbName;
     document.head.appendChild(script);
   }
