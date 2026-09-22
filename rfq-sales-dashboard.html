@@ -212,7 +212,12 @@
                   </div>
                 </td>
                 <td class="px-2 py-1.5"><input id="colf_dateOfRFQ" type="text" placeholder="e.g. Aug 2026" class="w-full px-2 py-1 text-[11px] rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950" /></td>
-                <td class="px-2 py-1.5"><input id="colf_closureMonth" type="text" placeholder="e.g. Aug-2026" class="w-full px-2 py-1 text-[11px] rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950" /></td>
+                <td class="px-2 py-1.5">
+                  <div class="relative msel" id="colfClosureMonth">
+                    <button class="msel-btn w-full px-2 py-1 text-[11px] text-left rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950">Month <span class="msel-count text-slate-400"></span></button>
+                    <div class="msel-panel absolute z-30 mt-1 w-40 max-h-56 overflow-y-auto rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-lg p-2"></div>
+                  </div>
+                </td>
                 <td class="px-2 py-1.5"></td>
                 <td class="px-2 py-1.5"></td>
                 <td class="px-2 py-1.5"><button id="colfClear" class="w-full text-[10px] text-[#0055ff] hover:underline">Clear</button></td>
@@ -1187,7 +1192,7 @@
   var columnFilters = {
     company:'', city:'', businessType:[], source:'', dealOwner:[],
     expMin:'', expMax:'', closeMin:'', closeMax:'',
-    dealStatus:[], temperature:[], dateOfRFQ:'', closureMonth:''
+    dealStatus:[], temperature:[], dateOfRFQ:'', closureMonth:[]
   };
 
   // Column filters narrow what's shown in the Data Table specifically —
@@ -1210,7 +1215,7 @@
       if (columnFilters.dealStatus.length && columnFilters.dealStatus.indexOf(d.dealStatus) === -1) return false;
       if (columnFilters.temperature.length && columnFilters.temperature.indexOf(d.temperature) === -1) return false;
       if (columnFilters.dateOfRFQ && fmtDate(d.dateOfRFQ).toLowerCase().indexOf(columnFilters.dateOfRFQ.toLowerCase()) === -1) return false;
-      if (columnFilters.closureMonth && (d.closureMonthRID || '').toLowerCase().indexOf(columnFilters.closureMonth.toLowerCase()) === -1) return false;
+      if (columnFilters.closureMonth.length && columnFilters.closureMonth.indexOf(d.closureMonthRID) === -1) return false;
       return true;
     });
   }
@@ -1242,6 +1247,12 @@
       setValue: function(arr){ columnFilters.temperature = arr; },
       onApply: renderTable
     });
+    buildMultiSelect('colfClosureMonth', 'closureMonthRID', {
+      groupByYear: true,
+      getValue: function(){ return columnFilters.closureMonth; },
+      setValue: function(arr){ columnFilters.closureMonth = arr; },
+      onApply: renderTable
+    });
   }
 
   // Wire the filter-row inputs once — they're static elements, only the
@@ -1251,7 +1262,7 @@
       ['colf_company', 'company'], ['colf_city', 'city'], ['colf_source', 'source'],
       ['colf_expMin', 'expMin'], ['colf_expMax', 'expMax'],
       ['colf_closeMin', 'closeMin'], ['colf_closeMax', 'closeMax'],
-      ['colf_dateOfRFQ', 'dateOfRFQ'], ['colf_closureMonth', 'closureMonth']
+      ['colf_dateOfRFQ', 'dateOfRFQ']
     ];
     bindings.forEach(function(pair){
       var el = document.getElementById(pair[0]);
@@ -1262,8 +1273,8 @@
     if (clearBtn) clearBtn.addEventListener('click', function(){
       columnFilters.company = ''; columnFilters.city = ''; columnFilters.source = '';
       columnFilters.expMin = ''; columnFilters.expMax = ''; columnFilters.closeMin = ''; columnFilters.closeMax = '';
-      columnFilters.dateOfRFQ = ''; columnFilters.closureMonth = '';
-      columnFilters.businessType = []; columnFilters.dealOwner = []; columnFilters.dealStatus = []; columnFilters.temperature = [];
+      columnFilters.dateOfRFQ = '';
+      columnFilters.businessType = []; columnFilters.dealOwner = []; columnFilters.dealStatus = []; columnFilters.temperature = []; columnFilters.closureMonth = [];
       document.querySelectorAll('#tableFilterRow input').forEach(function(el){ el.value = ''; });
       refreshColumnFilterOptions(); // repaints the four multi-select buttons back to "All"
       renderTable();
@@ -1372,15 +1383,15 @@
     { key:'brokerPOC', header: SHEET_HEADERS.brokerPOC, label:'Broker POC', type:'text', required:true },
     { key:'businessType', header: SHEET_HEADERS.businessType, label:'Business Type', type:'select', staticOptions:['Fresh','Rollover','Renewal'], required:true },
     { key:'expectedPremium', header: SHEET_HEADERS.expectedPremium, label:'Expected Premium (₹, w/o GST)', type:'number', required:true },
-    { key:'brokeragePct', header: SHEET_HEADERS.brokerage, label:'Brokerage Rate (%)', type:'number', isPercent:true, required:true },
+    { key:'brokeragePct', header: SHEET_HEADERS.brokerage, label:'Brokerage Rate (%)', type:'number', isPercent:true },
     { key:'closureAmount', header: SHEET_HEADERS.closureAmount, label:'Closure Amount (₹, w/o GST)', type:'number' },
     { key:'finalClosureAmount', header: SHEET_HEADERS.finalClosureAmount, label:'Final Closure Amount (₹, W/O GST)', type:'number' },
     { key:'extraCollected', header: SHEET_HEADERS.extraCollected, label:'Extra Collected Over Rater (₹)', type:'number' },
     { key:'dealOwner', header: SHEET_HEADERS.dealOwner, label:'Deal Owner', type:'select', staticOptions: ALLOWED_OWNERS, required:true },
-    { key:'secondOwner', header: SHEET_HEADERS.secondOwner, label:'Second Owner', type:'text', required:true },
+    { key:'secondOwner', header: SHEET_HEADERS.secondOwner, label:'Second Owner', type:'text' },
     { key:'stageRaw', header: SHEET_HEADERS.stage, label:'Stage', type:'select', staticOptions: STATUS_ORDER, allowOther:true, required:true },
     { key:'temperature', header: SHEET_HEADERS.temperature, label:'Temperature', type:'select', staticOptions:['','Hot','Warm','Cold'], required:true },
-    { key:'remarks', header: SHEET_HEADERS.remarks, label:'Remarks', type:'textarea', required:true }
+    { key:'remarks', header: SHEET_HEADERS.remarks, label:'Remarks', type:'textarea' }
   ];
 
   function toISODateInput(d){
@@ -2150,6 +2161,48 @@
   var myDealsPeriodMode = 'month';
   var upcomingPeriodGroups = {};       // periodKey -> { count, value, deals } — set by renderMyDeals, read by openPeriodListModal
   var upcomingPeriodLabelFn = function(k){ return k; };
+  var closuresByMonthGroups = {};      // closureMonthRID -> { count, value, deals } — set by renderMyDeals, read by openClosuresMonthModal
+
+  // Drill-down from a Closures by Month row: lists every deal that closed
+  // won in that month, with the closure-side detail (final amount, closure
+  // date, broker) rather than the pipeline-side fields the Upcoming
+  // Closures drill-down shows.
+  function openClosuresMonthModal(monthKey){
+    var group = closuresByMonthGroups[monthKey];
+    if (!group) return;
+    editingRow = null;
+    document.getElementById('modalCompany').textContent = monthKey + ' — ' + group.count + ' Closed Won deal' + (group.count === 1 ? '' : 's');
+    document.getElementById('modalSub').textContent = fmtMoney(group.value) + ' total closed won revenue';
+    var deals = group.deals.slice().sort(function(a, b){ return b.finalClosureAmount - a.finalClosureAmount; });
+    var body = document.getElementById('modalBody');
+    body.innerHTML = '<div class="overflow-x-auto -mx-5 px-5"><table class="min-w-full text-xs">' +
+      '<thead><tr>' +
+        '<th class="text-left px-2 py-1.5 font-medium text-slate-500 dark:text-slate-400">Company</th>' +
+        '<th class="text-left px-2 py-1.5 font-medium text-slate-500 dark:text-slate-400">Type</th>' +
+        '<th class="text-left px-2 py-1.5 font-medium text-slate-500 dark:text-slate-400">Source / Broker</th>' +
+        '<th class="text-right px-2 py-1.5 font-medium text-slate-500 dark:text-slate-400">Final Closure Amount</th>' +
+        '<th class="text-left px-2 py-1.5 font-medium text-slate-500 dark:text-slate-400">RFQ Date</th>' +
+        '<th class="text-left px-2 py-1.5 font-medium text-slate-500 dark:text-slate-400">Closure Date</th>' +
+        '<th class="text-center px-2 py-1.5 font-medium text-slate-500 dark:text-slate-400">Edit</th>' +
+      '</tr></thead><tbody>' +
+      deals.map(function(d){
+        return '<tr class="border-t border-slate-100 dark:border-slate-800">' +
+          '<td class="px-2 py-1.5 font-medium">' + escapeHTML(d.company) + '</td>' +
+          '<td class="px-2 py-1.5">' + escapeHTML(d.businessType) + '</td>' +
+          '<td class="px-2 py-1.5 text-slate-500 dark:text-slate-400">' + escapeHTML(d.broker || d.dealSource) + '</td>' +
+          '<td class="px-2 py-1.5 text-right tabular-nums">' + fmtMoney(d.finalClosureAmount) + '</td>' +
+          '<td class="px-2 py-1.5 text-slate-500 dark:text-slate-400">' + fmtDate(d.dateOfRFQ) + '</td>' +
+          '<td class="px-2 py-1.5 text-slate-500 dark:text-slate-400">' + fmtDate(d.closureDate) + '</td>' +
+          '<td class="px-2 py-1.5 text-center"><button data-edit="' + d._row + '" class="text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 text-[11px]">✎ Edit</button></td>' +
+        '</tr>';
+      }).join('') +
+      '</tbody></table></div>';
+    body.querySelectorAll('[data-edit]').forEach(function(btn){
+      btn.addEventListener('click', function(){ openEditModal(btn.getAttribute('data-edit')); });
+    });
+    document.getElementById('modalFooter').classList.add('hidden');
+    document.getElementById('modalBackdrop').classList.add('open');
+  }
 
   // Drill-down from an Upcoming Closures row: lists every lead in that
   // period with the fields a rep would need to work them, reusing the same
@@ -2337,10 +2390,12 @@
     var closureGroups = {};
     won.forEach(function(d){
       var key = d.closureMonthRID || 'Unspecified';
-      if (!closureGroups[key]) closureGroups[key] = { count: 0, value: 0 };
+      if (!closureGroups[key]) closureGroups[key] = { count: 0, value: 0, deals: [] };
       closureGroups[key].count++;
       closureGroups[key].value += d.finalClosureAmount;
+      closureGroups[key].deals.push(d);
     });
+    closuresByMonthGroups = closureGroups; // stashed at module scope so clicking a row can look up its deals
     var closureKeys = Object.keys(closureGroups).sort(function(a, b){
       if (a === 'Unspecified') return 1;
       if (b === 'Unspecified') return -1;
@@ -2349,15 +2404,19 @@
       return a.localeCompare(b);
     });
     document.getElementById('myDealsClosuresTotal').textContent = won.length + ' deals · ' + fmtMoneyShort(closedPremium) + ' total';
-    document.getElementById('myDealsClosuresBody').innerHTML = closureKeys.length
+    var closuresBody = document.getElementById('myDealsClosuresBody');
+    closuresBody.innerHTML = closureKeys.length
       ? closureKeys.map(function(k){
-          return '<tr class="border-t border-slate-100 dark:border-slate-800">' +
-            '<td class="px-3 py-2 font-medium">' + escapeHTML(k) + '</td>' +
+          return '<tr data-closuremonth="' + escapeHTML(k) + '" class="border-t border-slate-100 dark:border-slate-800 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50">' +
+            '<td class="px-3 py-2 font-medium text-[#0055ff] hover:underline">' + escapeHTML(k) + '</td>' +
             '<td class="px-3 py-2 text-right tabular-nums">' + closureGroups[k].count + '</td>' +
             '<td class="px-3 py-2 text-right tabular-nums">' + fmtMoney(closureGroups[k].value) + '</td>' +
           '</tr>';
         }).join('')
       : '<tr><td colspan="3" class="px-3 py-4 text-center text-slate-400 text-[11px]">No Closed Won deals yet.</td></tr>';
+    closuresBody.querySelectorAll('[data-closuremonth]').forEach(function(tr){
+      tr.addEventListener('click', function(){ openClosuresMonthModal(tr.getAttribute('data-closuremonth')); });
+    });
 
     // ---- Closed Lost report ----
     document.getElementById('myDealsLostTotal').textContent = lost.length + ' deals · ' + fmtMoneyShort(lostValue) + ' total expected value';
