@@ -105,7 +105,7 @@
     <nav class="max-w-[1400px] mx-auto px-5 flex gap-1 overflow-x-auto">
       <button data-tab="pipeline" class="tabbtn px-3.5 py-2.5 text-sm font-medium border-b-2 border-[#0055ff] text-[#0055ff]">Sales Pipeline</button>
       <button data-tab="mydeals" class="tabbtn px-3.5 py-2.5 text-sm font-medium border-b-2 border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-100">My Deals</button>
-      <button data-tab="analytics" class="tabbtn px-3.5 py-2.5 text-sm font-medium border-b-2 border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-100">Leadership Analytics</button>
+      <button data-tab="analytics" class="tabbtn px-3.5 py-2.5 text-sm font-medium border-b-2 border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-100">Analytics</button>
       <button data-tab="newrfq" class="tabbtn px-3.5 py-2.5 text-sm font-medium border-b-2 border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-100">New RFQ Entry</button>
     </nav>
   </header>
@@ -177,7 +177,7 @@
                 <th class="text-left px-3 py-2 font-medium text-slate-500 dark:text-slate-400" data-key="dealStatus">Status</th>
                 <th class="text-left px-3 py-2 font-medium text-slate-500 dark:text-slate-400" data-key="temperature">Temperature</th>
                 <th class="text-left px-3 py-2 font-medium text-slate-500 dark:text-slate-400" data-key="dateOfRFQ">RFQ Date</th>
-                <th class="text-left px-3 py-2 font-medium text-slate-500 dark:text-slate-400" data-key="closureDate">Closure Date</th>
+                <th class="text-left px-3 py-2 font-medium text-slate-500 dark:text-slate-400" data-key="closureMonthRID">Closure Month</th>
                 <th class="text-center px-3 py-2 font-medium text-slate-500 dark:text-slate-400">Details</th>
                 <th class="text-center px-3 py-2 font-medium text-slate-500 dark:text-slate-400">Edit</th>
               </tr>
@@ -212,7 +212,7 @@
                   </div>
                 </td>
                 <td class="px-2 py-1.5"><input id="colf_dateOfRFQ" type="text" placeholder="e.g. Aug 2026" class="w-full px-2 py-1 text-[11px] rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950" /></td>
-                <td class="px-2 py-1.5"><input id="colf_closureDate" type="text" placeholder="e.g. Aug 2026" class="w-full px-2 py-1 text-[11px] rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950" /></td>
+                <td class="px-2 py-1.5"><input id="colf_closureMonth" type="text" placeholder="e.g. Aug-2026" class="w-full px-2 py-1 text-[11px] rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950" /></td>
                 <td class="px-2 py-1.5"></td>
                 <td class="px-2 py-1.5"></td>
                 <td class="px-2 py-1.5"><button id="colfClear" class="w-full text-[10px] text-[#0055ff] hover:underline">Clear</button></td>
@@ -277,6 +277,24 @@
 
         <div class="mb-5">
           <div class="flex items-center justify-between mb-2">
+            <div class="text-sm font-semibold">Closures by Month</div>
+            <div id="myDealsClosuresTotal" class="text-[11px] text-slate-400 dark:text-slate-500"></div>
+          </div>
+          <div class="text-[11px] text-slate-400 dark:text-slate-500 mb-2">Closed Won revenue, grouped by Closure Month / RID</div>
+          <div class="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800">
+            <table class="min-w-full text-xs">
+              <thead><tr>
+                <th class="text-left px-3 py-2 font-medium text-slate-500 dark:text-slate-400">Month</th>
+                <th class="text-right px-3 py-2 font-medium text-slate-500 dark:text-slate-400"># Deals</th>
+                <th class="text-right px-3 py-2 font-medium text-slate-500 dark:text-slate-400">Closed Won Revenue</th>
+              </tr></thead>
+              <tbody id="myDealsClosuresBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="mb-5">
+          <div class="flex items-center justify-between mb-2">
             <div class="text-sm font-semibold">Closed Lost Report</div>
             <div id="myDealsLostTotal" class="text-[11px] text-slate-400 dark:text-slate-500"></div>
           </div>
@@ -330,7 +348,7 @@
 
     <!-- ================= VIEW: LEADERSHIP ANALYTICS ================= -->
     <section data-panel="analytics">
-      <h1 class="text-lg font-semibold mb-4">Leadership Analytics</h1>
+      <h1 class="text-lg font-semibold mb-4">Analytics</h1>
 
       <!-- KPI cards -->
       <div id="kpiGrid" class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3 mb-6"></div>
@@ -382,6 +400,13 @@
           <div class="text-[11px] text-slate-400 dark:text-slate-500 mb-3">Total expected premium vs. total closed won premium, per rep</div>
           <div class="h-72"><canvas id="chartExpectedVsClosedOwner"></canvas></div>
         </div>
+      </div>
+
+      <h2 class="text-sm font-semibold text-slate-500 dark:text-slate-400 mt-8 mb-3">Targets vs Closed Won</h2>
+      <div class="text-[11px] text-slate-400 dark:text-slate-500 mb-3">Pick any quarter per panel — past quarters show what closed, future quarters are ready as soon as data comes in.</div>
+      <div class="grid grid-cols-1 xl:grid-cols-2 gap-4" id="targetsGrid">
+        <div id="targetsPanelA"></div>
+        <div id="targetsPanelB"></div>
       </div>
     </section>
 
@@ -1162,7 +1187,7 @@
   var columnFilters = {
     company:'', city:'', businessType:[], source:'', dealOwner:[],
     expMin:'', expMax:'', closeMin:'', closeMax:'',
-    dealStatus:[], temperature:[], dateOfRFQ:'', closureDate:''
+    dealStatus:[], temperature:[], dateOfRFQ:'', closureMonth:''
   };
 
   // Column filters narrow what's shown in the Data Table specifically —
@@ -1185,7 +1210,7 @@
       if (columnFilters.dealStatus.length && columnFilters.dealStatus.indexOf(d.dealStatus) === -1) return false;
       if (columnFilters.temperature.length && columnFilters.temperature.indexOf(d.temperature) === -1) return false;
       if (columnFilters.dateOfRFQ && fmtDate(d.dateOfRFQ).toLowerCase().indexOf(columnFilters.dateOfRFQ.toLowerCase()) === -1) return false;
-      if (columnFilters.closureDate && fmtDate(d.closureDate).toLowerCase().indexOf(columnFilters.closureDate.toLowerCase()) === -1) return false;
+      if (columnFilters.closureMonth && (d.closureMonthRID || '').toLowerCase().indexOf(columnFilters.closureMonth.toLowerCase()) === -1) return false;
       return true;
     });
   }
@@ -1226,7 +1251,7 @@
       ['colf_company', 'company'], ['colf_city', 'city'], ['colf_source', 'source'],
       ['colf_expMin', 'expMin'], ['colf_expMax', 'expMax'],
       ['colf_closeMin', 'closeMin'], ['colf_closeMax', 'closeMax'],
-      ['colf_dateOfRFQ', 'dateOfRFQ'], ['colf_closureDate', 'closureDate']
+      ['colf_dateOfRFQ', 'dateOfRFQ'], ['colf_closureMonth', 'closureMonth']
     ];
     bindings.forEach(function(pair){
       var el = document.getElementById(pair[0]);
@@ -1237,7 +1262,7 @@
     if (clearBtn) clearBtn.addEventListener('click', function(){
       columnFilters.company = ''; columnFilters.city = ''; columnFilters.source = '';
       columnFilters.expMin = ''; columnFilters.expMax = ''; columnFilters.closeMin = ''; columnFilters.closeMax = '';
-      columnFilters.dateOfRFQ = ''; columnFilters.closureDate = '';
+      columnFilters.dateOfRFQ = ''; columnFilters.closureMonth = '';
       columnFilters.businessType = []; columnFilters.dealOwner = []; columnFilters.dealStatus = []; columnFilters.temperature = [];
       document.querySelectorAll('#tableFilterRow input').forEach(function(el){ el.value = ''; });
       refreshColumnFilterOptions(); // repaints the four multi-select buttons back to "All"
@@ -1261,7 +1286,7 @@
         '<td class="px-3 py-2"><span class="chip ' + colorInfo.chip + '">' + escapeHTML(d.dealStatus) + '</span></td>' +
         '<td class="px-3 py-2">' + (d.temperature ? '<span class="chip ' + TEMP_COLORS[d.temperature] + '">' + d.temperature + '</span>' : '<span class="text-slate-400">—</span>') + '</td>' +
         '<td class="px-3 py-2 text-slate-500 dark:text-slate-400">' + fmtDate(d.dateOfRFQ) + '</td>' +
-        '<td class="px-3 py-2 text-slate-500 dark:text-slate-400">' + fmtDate(d.closureDate) + '</td>' +
+        '<td class="px-3 py-2 text-slate-500 dark:text-slate-400">' + escapeHTML(d.closureMonthRID || '—') + '</td>' +
         '<td class="px-3 py-2 text-center"><button data-details="' + d._row + '" class="text-[#0055ff] hover:underline text-[11px]">View</button></td>' +
         '<td class="px-3 py-2 text-center"><button data-edit="' + d._row + '" class="text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 text-[11px]" title="Edit">✎ Edit</button></td>' +
       '</tr>';
@@ -1338,24 +1363,24 @@
   // escape hatch) since that vocabulary evolves over time.
   var FIELD_DEFS = [
     { key:'company', header: SHEET_HEADERS.company, label:'Company Name', type:'text', required:true },
-    { key:'city', header: SHEET_HEADERS.city, label:'City', type:'select', optionsField:'city', allowOther:true },
-    { key:'employees', header: SHEET_HEADERS.employees, label:'Number of Employees', type:'number' },
-    { key:'dateOfRFQ', header: SHEET_HEADERS.dateOfRFQ, label:'Date of RFQ', type:'date' },
-    { key:'closureDate', header: SHEET_HEADERS.closureDate, label:'Closure Date', type:'date' },
-    { key:'dealSource', header: SHEET_HEADERS.dealSource, label:'Deal Source', type:'select', optionsField:'dealSource', allowOther:true },
-    { key:'broker', header: SHEET_HEADERS.broker, label:'Broker', type:'select', optionsField:'broker', allowOther:true },
-    { key:'brokerPOC', header: SHEET_HEADERS.brokerPOC, label:'Broker POC', type:'text' },
-    { key:'businessType', header: SHEET_HEADERS.businessType, label:'Business Type', type:'select', staticOptions:['Fresh','Rollover','Renewal'] },
-    { key:'expectedPremium', header: SHEET_HEADERS.expectedPremium, label:'Expected Premium (₹, w/o GST)', type:'number' },
-    { key:'brokeragePct', header: SHEET_HEADERS.brokerage, label:'Brokerage Rate (%)', type:'number', isPercent:true },
+    { key:'city', header: SHEET_HEADERS.city, label:'City', type:'select', optionsField:'city', allowOther:true, required:true },
+    { key:'employees', header: SHEET_HEADERS.employees, label:'Number of Employees', type:'number', required:true },
+    { key:'dateOfRFQ', header: SHEET_HEADERS.dateOfRFQ, label:'Date of RFQ', type:'date', required:true },
+    { key:'closureDate', header: SHEET_HEADERS.closureDate, label:'Closure Date', type:'date', required:true },
+    { key:'dealSource', header: SHEET_HEADERS.dealSource, label:'Deal Source', type:'select', optionsField:'dealSource', allowOther:true, required:true },
+    { key:'broker', header: SHEET_HEADERS.broker, label:'Broker', type:'select', optionsField:'broker', allowOther:true, required:true },
+    { key:'brokerPOC', header: SHEET_HEADERS.brokerPOC, label:'Broker POC', type:'text', required:true },
+    { key:'businessType', header: SHEET_HEADERS.businessType, label:'Business Type', type:'select', staticOptions:['Fresh','Rollover','Renewal'], required:true },
+    { key:'expectedPremium', header: SHEET_HEADERS.expectedPremium, label:'Expected Premium (₹, w/o GST)', type:'number', required:true },
+    { key:'brokeragePct', header: SHEET_HEADERS.brokerage, label:'Brokerage Rate (%)', type:'number', isPercent:true, required:true },
     { key:'closureAmount', header: SHEET_HEADERS.closureAmount, label:'Closure Amount (₹, w/o GST)', type:'number' },
     { key:'finalClosureAmount', header: SHEET_HEADERS.finalClosureAmount, label:'Final Closure Amount (₹, W/O GST)', type:'number' },
     { key:'extraCollected', header: SHEET_HEADERS.extraCollected, label:'Extra Collected Over Rater (₹)', type:'number' },
-    { key:'dealOwner', header: SHEET_HEADERS.dealOwner, label:'Deal Owner', type:'select', staticOptions: ALLOWED_OWNERS },
-    { key:'secondOwner', header: SHEET_HEADERS.secondOwner, label:'Second Owner', type:'text' },
-    { key:'stageRaw', header: SHEET_HEADERS.stage, label:'Stage', type:'select', staticOptions: STATUS_ORDER, allowOther:true },
-    { key:'temperature', header: SHEET_HEADERS.temperature, label:'Temperature', type:'select', staticOptions:['','Hot','Warm','Cold'] },
-    { key:'remarks', header: SHEET_HEADERS.remarks, label:'Remarks', type:'textarea' }
+    { key:'dealOwner', header: SHEET_HEADERS.dealOwner, label:'Deal Owner', type:'select', staticOptions: ALLOWED_OWNERS, required:true },
+    { key:'secondOwner', header: SHEET_HEADERS.secondOwner, label:'Second Owner', type:'text', required:true },
+    { key:'stageRaw', header: SHEET_HEADERS.stage, label:'Stage', type:'select', staticOptions: STATUS_ORDER, allowOther:true, required:true },
+    { key:'temperature', header: SHEET_HEADERS.temperature, label:'Temperature', type:'select', staticOptions:['','Hot','Warm','Cold'], required:true },
+    { key:'remarks', header: SHEET_HEADERS.remarks, label:'Remarks', type:'textarea', required:true }
   ];
 
   function toISODateInput(d){
@@ -1383,12 +1408,14 @@
     return v;
   }
 
-  function buildFieldHTML(def, value){
-    var id = 'field_' + def.key;
+  function buildFieldHTML(def, value, idPrefix){
+    var id = (idPrefix || 'field_') + def.key;
     value = value == null ? '' : value;
+    var req = def.required ? ' required' : '';
+    var reqMark = def.required ? ' <span class="text-rose-500">*</span>' : '';
     if (def.type === 'textarea') {
-      return '<div class="md:col-span-2"><label class="block text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-1">' + def.label + '</label>' +
-        '<textarea id="' + id + '" rows="3" class="w-full px-3 py-2 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950">' + escapeHTML(value) + '</textarea></div>';
+      return '<div class="md:col-span-2"><label class="block text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-1">' + def.label + reqMark + '</label>' +
+        '<textarea id="' + id + '" rows="3"' + req + ' class="w-full px-3 py-2 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950">' + escapeHTML(value) + '</textarea></div>';
     }
     if (def.type === 'select') {
       var opts = def.staticOptions ? def.staticOptions.slice() : uniqueValues(def.optionsField).filter(function(o){ return o !== 'Unspecified' && o !== 'Unassigned'; });
@@ -1398,37 +1425,54 @@
         return '<option value="' + escapeHTML(o) + '"' + (o === value ? ' selected' : '') + '>' + (o || '— Select —') + '</option>';
       }).join('');
       if (def.allowOther) optionsHTML += '<option value="__other__">+ Add new value…</option>';
-      var html = '<div><label class="block text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-1">' + def.label + '</label>' +
-        '<select id="' + id + '" class="w-full px-3 py-2 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950">' + optionsHTML + '</select>';
+      var html = '<div><label class="block text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-1">' + def.label + reqMark + '</label>' +
+        '<select id="' + id + '"' + req + ' class="w-full px-3 py-2 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950">' + optionsHTML + '</select>';
       if (def.allowOther) html += '<input id="' + id + '_other" type="text" placeholder="New value" class="hidden mt-1.5 w-full px-3 py-2 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950" />';
       return html + '</div>';
     }
     if (def.type === 'date') {
-      return '<div><label class="block text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-1">' + def.label + '</label>' +
-        '<input id="' + id + '" type="date" value="' + value + '" class="w-full px-3 py-2 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950" /></div>';
+      return '<div><label class="block text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-1">' + def.label + reqMark + '</label>' +
+        '<input id="' + id + '" type="date" value="' + value + '"' + req + ' class="w-full px-3 py-2 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950" /></div>';
     }
-    return '<div><label class="block text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-1">' + def.label + '</label>' +
-      '<input id="' + id + '" type="' + (def.type === 'number' ? 'number' : 'text') + '" ' + (def.type==='number'?'step="any"':'') + ' value="' + escapeHTML(String(value)) + '" class="w-full px-3 py-2 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950" /></div>';
+    return '<div><label class="block text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-1">' + def.label + reqMark + '</label>' +
+      '<input id="' + id + '" type="' + (def.type === 'number' ? 'number' : 'text') + '" ' + (def.type==='number'?'step="any"':'') + ' value="' + escapeHTML(String(value)) + '"' + req + ' class="w-full px-3 py-2 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950" /></div>';
   }
 
-  function wireOtherToggles(scope){
+  // IMPORTANT: idPrefix must match between buildFieldHTML, wireOtherToggles
+  // and readFieldValue for a given form. The Edit modal and New RFQ Entry
+  // form both render the exact same FIELD_DEFS — without distinct prefixes,
+  // the modal's fields would collide with the always-present New RFQ Entry
+  // fields (same ids), and document.getElementById would silently return
+  // the WRONG form's element (the first one in DOM order), reading blank
+  // values on save. This is why edits used to wipe the row.
+  function wireOtherToggles(scope, idPrefix){
+    var prefix = idPrefix || 'field_';
     FIELD_DEFS.forEach(function(def){
       if (def.type !== 'select' || !def.allowOther) return;
-      var sel = scope.querySelector('#field_' + def.key);
-      var other = scope.querySelector('#field_' + def.key + '_other');
+      var sel = scope.querySelector('#' + prefix + def.key);
+      var other = scope.querySelector('#' + prefix + def.key + '_other');
       if (!sel || !other) return;
-      function sync(){ other.classList.toggle('hidden', sel.value !== '__other__'); }
+      function sync(){
+        var isOther = sel.value === '__other__';
+        other.classList.toggle('hidden', !isOther);
+        // Native `required` on the <select> is satisfied once "__other__" is
+        // picked, so without this the paired free-text box could be left
+        // blank and still pass validation — shift the requirement onto it
+        // instead whenever it's the one actually being filled in.
+        if (def.required) other.required = isOther;
+      }
       sel.addEventListener('change', sync);
       sync();
     });
   }
 
-  function readFieldValue(def){
-    var el = document.getElementById('field_' + def.key);
+  function readFieldValue(def, idPrefix){
+    var prefix = idPrefix || 'field_';
+    var el = document.getElementById(prefix + def.key);
     if (!el) return '';
     var v = el.value;
     if (def.type === 'select' && def.allowOther && v === '__other__') {
-      var otherEl = document.getElementById('field_' + def.key + '_other');
+      var otherEl = document.getElementById(prefix + def.key + '_other');
       v = otherEl ? otherEl.value.trim() : '';
     }
     if (def.isPercent) return v === '' ? '' : parseFloat(v).toFixed(2) + '%';
@@ -1475,9 +1519,9 @@
     var body = document.getElementById('modalBody');
     var values = valuesFromRecord(d);
     body.innerHTML = '<div class="grid grid-cols-1 md:grid-cols-2 gap-3">' +
-      FIELD_DEFS.map(function(def){ return buildFieldHTML(def, values[def.key]); }).join('') +
+      FIELD_DEFS.map(function(def){ return buildFieldHTML(def, values[def.key], 'editField_'); }).join('') +
     '</div>';
-    wireOtherToggles(body);
+    wireOtherToggles(body, 'editField_');
     document.getElementById('modalSaveStatus').textContent = APPS_SCRIPT_URL ? '' : 'No sheet connected — this will only update the view, not the sheet.';
     document.getElementById('modalFooter').classList.remove('hidden');
     document.getElementById('modalBackdrop').classList.add('open');
@@ -1499,12 +1543,13 @@
     renderKPIs();
     renderAllCharts();
     renderMyDeals();
+    renderTargetsSection();
   }
 
   document.getElementById('modalSave').addEventListener('click', function(){
     if (!editingRow) return;
     var payload = {};
-    FIELD_DEFS.forEach(function(def){ payload[def.header] = readFieldValue(def); });
+    FIELD_DEFS.forEach(function(def){ payload[def.header] = readFieldValue(def, 'editField_'); });
     var statusEl = document.getElementById('modalSaveStatus');
     var saveBtn = document.getElementById('modalSave');
     var rowId = editingRow._row;
@@ -1834,6 +1879,173 @@
     });
   });
 
+  /* =====================================================================
+     8b. TARGETS VS CLOSED WON — two side-by-side, independently
+     quarter-selectable panels. Targets are business-set numbers with no
+     home in the sheet, so they're kept in this browser's localStorage;
+     everything else (closed-won revenue/counts) is computed live from DATA.
+     ===================================================================== */
+  var QUARTER_ABBR = { 1:'JFM', 2:'AMJ', 3:'JAS', 4:'OND' };
+  function quarterKeyOf(year, q){ return year + '-Q' + q; }
+  function quarterLabelOf(year, q){ return QUARTER_ABBR[q] + "'" + String(year).slice(2); }
+  function quarterMonthLabels(year, q){
+    var startMonth = (q - 1) * 3;
+    var out = [];
+    for (var i = 0; i < 3; i++) out.push(MONTH_ABBR[startMonth + i] + '-' + year);
+    return out;
+  }
+  function parseQuarterKey(key){
+    var parts = key.split('-Q');
+    return { year: Number(parts[0]), q: Number(parts[1]) };
+  }
+  function generateQuarterOptions(){
+    var curYear = new Date().getFullYear();
+    var opts = [];
+    for (var y = curYear - 2; y <= curYear + 1; y++){
+      for (var q = 1; q <= 4; q++) opts.push({ key: quarterKeyOf(y, q), label: quarterLabelOf(y, q) });
+    }
+    return opts;
+  }
+  function currentQuarterKey(){
+    var now = new Date();
+    return quarterKeyOf(now.getFullYear(), Math.floor(now.getMonth() / 3) + 1);
+  }
+  function previousQuarterKey(){
+    var now = new Date();
+    var q = Math.floor(now.getMonth() / 3) + 1, y = now.getFullYear();
+    q -= 1;
+    if (q < 1) { q = 4; y -= 1; }
+    return quarterKeyOf(y, q);
+  }
+
+  var TARGETS_KEY = 'rfqTargets_v1';
+  function loadTargets(){ try { return JSON.parse(localStorage.getItem(TARGETS_KEY) || '{}'); } catch (e) { return {}; } }
+  function saveTargets(obj){ try { localStorage.setItem(TARGETS_KEY, JSON.stringify(obj)); } catch (e) { /* private browsing / quota — targets just won't persist */ } }
+  var targetsData = loadTargets(); // { "<year>-Q<n>": { "<owner>": targetNumber } }
+
+  var selectedQuarterA = previousQuarterKey();
+  var selectedQuarterB = currentQuarterKey();
+
+  function renderTargetsSection(){
+    renderQuarterPanel('targetsPanelA', selectedQuarterA, function(k){ selectedQuarterA = k; renderTargetsSection(); });
+    renderQuarterPanel('targetsPanelB', selectedQuarterB, function(k){ selectedQuarterB = k; renderTargetsSection(); });
+  }
+
+  function renderQuarterPanel(containerId, qKey, onQuarterChange){
+    var host = document.getElementById(containerId);
+    if (!host) return;
+    var parsed = parseQuarterKey(qKey);
+    var qLabel = quarterLabelOf(parsed.year, parsed.q);
+    var months = quarterMonthLabels(parsed.year, parsed.q);
+    var quarterOpts = generateQuarterOptions();
+
+    var won = DATA.filter(function(d){ return d.dealStatus === 'Closed Won' && months.indexOf(d.closureMonthRID) > -1; });
+
+    var sumGrid = {}, countGrid = {};
+    ALLOWED_OWNERS.forEach(function(o){
+      sumGrid[o] = {}; countGrid[o] = {};
+      months.forEach(function(m){ sumGrid[o][m] = 0; countGrid[o][m] = 0; });
+    });
+    won.forEach(function(d){
+      if (!sumGrid[d.dealOwner]) return;
+      sumGrid[d.dealOwner][d.closureMonthRID] += d.finalClosureAmount;
+      countGrid[d.dealOwner][d.closureMonthRID]++;
+    });
+
+    var ownerTotals = {}, ownerCountTotals = {};
+    ALLOWED_OWNERS.forEach(function(o){
+      ownerTotals[o] = months.reduce(function(s,m){ return s + sumGrid[o][m]; }, 0);
+      ownerCountTotals[o] = months.reduce(function(s,m){ return s + countGrid[o][m]; }, 0);
+    });
+    var monthTotals = {}, monthCountTotals = {};
+    months.forEach(function(m){
+      monthTotals[m] = ALLOWED_OWNERS.reduce(function(s,o){ return s + sumGrid[o][m]; }, 0);
+      monthCountTotals[m] = ALLOWED_OWNERS.reduce(function(s,o){ return s + countGrid[o][m]; }, 0);
+    });
+    var grandTotal = months.reduce(function(s,m){ return s + monthTotals[m]; }, 0);
+    var grandCountTotal = months.reduce(function(s,m){ return s + monthCountTotals[m]; }, 0);
+
+    var qTargets = targetsData[qKey] || {};
+    var targetGrandTotal = ALLOWED_OWNERS.reduce(function(s,o){ return s + (Number(qTargets[o]) || 0); }, 0);
+    var overallPct = targetGrandTotal ? (grandTotal / targetGrandTotal * 100) : null;
+
+    function pctFor(achieved, target){ return target ? (achieved / target * 100).toFixed(2) + '%' : '—'; }
+
+    var html = '<div class="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">';
+    html += '<div class="flex items-center justify-between mb-3">' +
+      '<div class="text-sm font-semibold">' + qLabel + ' — Closed Won</div>' +
+      '<select class="quarter-picker px-2 py-1 text-[11px] rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950">' +
+        quarterOpts.map(function(o){ return '<option value="' + o.key + '"' + (o.key === qKey ? ' selected' : '') + '>' + o.label + '</option>'; }).join('') +
+      '</select></div>';
+
+    // SUM pivot
+    html += '<div class="text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1">Closed Won Revenue (₹, w/o GST)</div>' +
+      '<div class="overflow-x-auto mb-4"><table class="min-w-full text-[11px]"><thead><tr>' +
+      '<th class="text-left px-2 py-1.5 font-medium text-slate-500 dark:text-slate-400">Deal Owner</th>' +
+      months.map(function(m){ return '<th class="text-right px-2 py-1.5 font-medium text-slate-500 dark:text-slate-400">' + m + '</th>'; }).join('') +
+      '<th class="text-right px-2 py-1.5 font-semibold text-slate-700 dark:text-slate-200">Grand Total</th></tr></thead><tbody>';
+    ALLOWED_OWNERS.forEach(function(o){
+      html += '<tr class="border-t border-slate-100 dark:border-slate-800"><td class="px-2 py-1.5 font-medium">' + escapeHTML(o) + '</td>' +
+        months.map(function(m){ return '<td class="px-2 py-1.5 text-right tabular-nums">' + (sumGrid[o][m] ? fmtMoney(sumGrid[o][m]) : '—') + '</td>'; }).join('') +
+        '<td class="px-2 py-1.5 text-right font-semibold tabular-nums">' + fmtMoney(ownerTotals[o]) + '</td></tr>';
+    });
+    html += '<tr class="border-t border-slate-200 dark:border-slate-700 font-semibold"><td class="px-2 py-1.5">Grand Total</td>' +
+      months.map(function(m){ return '<td class="px-2 py-1.5 text-right tabular-nums">' + fmtMoney(monthTotals[m]) + '</td>'; }).join('') +
+      '<td class="px-2 py-1.5 text-right tabular-nums">' + fmtMoney(grandTotal) + '</td></tr></tbody></table></div>';
+
+    // Targets vs Achieved
+    html += '<div class="text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1">Targets vs Achieved</div>' +
+      '<div class="overflow-x-auto mb-4"><table class="min-w-full text-[11px]"><thead><tr>' +
+      '<th class="text-left px-2 py-1.5 font-medium text-slate-500 dark:text-slate-400">Deal Owner</th>' +
+      '<th class="text-right px-2 py-1.5 font-medium text-slate-500 dark:text-slate-400">Target (₹)</th>' +
+      '<th class="text-right px-2 py-1.5 font-medium text-slate-500 dark:text-slate-400">Achieved</th>' +
+      '<th class="text-right px-2 py-1.5 font-medium text-slate-500 dark:text-slate-400">% Achieved</th></tr></thead><tbody>';
+    ALLOWED_OWNERS.forEach(function(o){
+      var t = qTargets[o] != null ? qTargets[o] : '';
+      html += '<tr class="border-t border-slate-100 dark:border-slate-800"><td class="px-2 py-1.5 font-medium">' + escapeHTML(o) + '</td>' +
+        '<td class="px-2 py-1.5 text-right"><input type="number" min="0" step="any" data-target-owner="' + escapeHTML(o) + '" value="' + t + '" placeholder="0" class="w-24 text-right px-1.5 py-1 text-[11px] rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950" /></td>' +
+        '<td class="px-2 py-1.5 text-right tabular-nums">' + fmtMoney(ownerTotals[o]) + '</td>' +
+        '<td class="px-2 py-1.5 text-right tabular-nums">' + pctFor(ownerTotals[o], Number(t) || 0) + '</td></tr>';
+    });
+    html += '<tr class="border-t border-slate-200 dark:border-slate-700 font-semibold"><td class="px-2 py-1.5">Total</td>' +
+      '<td class="px-2 py-1.5 text-right tabular-nums">' + fmtMoney(targetGrandTotal) + '</td>' +
+      '<td class="px-2 py-1.5 text-right tabular-nums">' + fmtMoney(grandTotal) + '</td>' +
+      '<td class="px-2 py-1.5 text-right tabular-nums">' + (overallPct != null ? overallPct.toFixed(2) + '%' : '—') + '</td></tr></tbody></table></div>' +
+      '<div class="text-[10px] text-slate-400 dark:text-slate-500 mb-4">Targets are saved in this browser only, not the sheet — set them once per device you view this from.</div>';
+
+    // Deal count pivot
+    html += '<div class="text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1">Deal Count</div>' +
+      '<div class="overflow-x-auto"><table class="min-w-full text-[11px]"><thead><tr>' +
+      '<th class="text-left px-2 py-1.5 font-medium text-slate-500 dark:text-slate-400">Deal Owner</th>' +
+      months.map(function(m){ return '<th class="text-right px-2 py-1.5 font-medium text-slate-500 dark:text-slate-400">' + m + '</th>'; }).join('') +
+      '<th class="text-right px-2 py-1.5 font-semibold text-slate-700 dark:text-slate-200">Grand Total</th></tr></thead><tbody>';
+    ALLOWED_OWNERS.forEach(function(o){
+      html += '<tr class="border-t border-slate-100 dark:border-slate-800"><td class="px-2 py-1.5 font-medium">' + escapeHTML(o) + '</td>' +
+        months.map(function(m){ return '<td class="px-2 py-1.5 text-right tabular-nums">' + (countGrid[o][m] || '—') + '</td>'; }).join('') +
+        '<td class="px-2 py-1.5 text-right font-semibold tabular-nums">' + ownerCountTotals[o] + '</td></tr>';
+    });
+    html += '<tr class="border-t border-slate-200 dark:border-slate-700 font-semibold"><td class="px-2 py-1.5">Grand Total</td>' +
+      months.map(function(m){ return '<td class="px-2 py-1.5 text-right tabular-nums">' + monthCountTotals[m] + '</td>'; }).join('') +
+      '<td class="px-2 py-1.5 text-right tabular-nums">' + grandCountTotal + '</td></tr></tbody></table></div>';
+
+    html += '</div>';
+    host.innerHTML = html;
+
+    host.querySelector('.quarter-picker').addEventListener('change', function(e){ onQuarterChange(e.target.value); });
+    // "change" (not "input") so a full, correctly-recomputed re-render only
+    // happens once the rep tabs/clicks away, rather than on every keystroke
+    // while they're still typing a number.
+    host.querySelectorAll('[data-target-owner]').forEach(function(inp){
+      inp.addEventListener('change', function(){
+        var owner = inp.getAttribute('data-target-owner');
+        targetsData[qKey] = targetsData[qKey] || {};
+        targetsData[qKey][owner] = parseFloat(inp.value) || 0;
+        saveTargets(targetsData);
+        renderQuarterPanel(containerId, qKey, onQuarterChange);
+      });
+    });
+  }
+
   function renderAllCharts(){
     renderBrokerChart();
     renderTrendChart();
@@ -1862,6 +2074,7 @@
     renderKPIs();
     renderAllCharts();
     renderMyDeals();
+    renderTargetsSection();
     buildNewRfqForm();
     var now = new Date();
     document.getElementById('asOf').textContent = 'as of ' + now.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
@@ -1917,7 +2130,7 @@
         refreshColumnFilterOptions();
         buildMultiSelect('mselCity', 'city');
         buildMultiSelect('mselClosureMonth', 'expectedClosureMonth', { groupByYear: true });
-        applyFilters(); renderKPIs(); renderAllCharts(); renderMyDeals();
+        applyFilters(); renderKPIs(); renderAllCharts(); renderMyDeals(); renderTargetsSection();
         statusEl.textContent = 'Submitted — row ' + result.row + ' added to the sheet.';
         toast('New RFQ added to the sheet.');
         buildNewRfqForm();
@@ -2119,6 +2332,32 @@
           '</tr>';
         }).join('')
       : '<tr><td colspan="5" class="px-3 py-4 text-center text-slate-400 text-[11px]">No lapsed deals — nothing overdue.</td></tr>';
+
+    // ---- Closures by Month — Closed Won, grouped by Closure Month / RID ----
+    var closureGroups = {};
+    won.forEach(function(d){
+      var key = d.closureMonthRID || 'Unspecified';
+      if (!closureGroups[key]) closureGroups[key] = { count: 0, value: 0 };
+      closureGroups[key].count++;
+      closureGroups[key].value += d.finalClosureAmount;
+    });
+    var closureKeys = Object.keys(closureGroups).sort(function(a, b){
+      if (a === 'Unspecified') return 1;
+      if (b === 'Unspecified') return -1;
+      var ma = parseMonthYearLabel(a), mb = parseMonthYearLabel(b);
+      if (ma && mb) return (ma.year - mb.year) || (ma.month - mb.month);
+      return a.localeCompare(b);
+    });
+    document.getElementById('myDealsClosuresTotal').textContent = won.length + ' deals · ' + fmtMoneyShort(closedPremium) + ' total';
+    document.getElementById('myDealsClosuresBody').innerHTML = closureKeys.length
+      ? closureKeys.map(function(k){
+          return '<tr class="border-t border-slate-100 dark:border-slate-800">' +
+            '<td class="px-3 py-2 font-medium">' + escapeHTML(k) + '</td>' +
+            '<td class="px-3 py-2 text-right tabular-nums">' + closureGroups[k].count + '</td>' +
+            '<td class="px-3 py-2 text-right tabular-nums">' + fmtMoney(closureGroups[k].value) + '</td>' +
+          '</tr>';
+        }).join('')
+      : '<tr><td colspan="3" class="px-3 py-4 text-center text-slate-400 text-[11px]">No Closed Won deals yet.</td></tr>';
 
     // ---- Closed Lost report ----
     document.getElementById('myDealsLostTotal').textContent = lost.length + ' deals · ' + fmtMoneyShort(lostValue) + ' total expected value';
