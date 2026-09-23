@@ -712,7 +712,11 @@
       monthOfRFQ: normalizeMonthLabel(raw['Month of RFQ']),
       expectedClosureMonth: expectedClosureMonth,
       closureDate: closureDate,
-      closureMonthRID: normalizeMonthLabel(raw['Closure Month / RID']),
+      // "Closure Month / RID" is its own sheet column, separate from
+      // "Closure Date" — when it's left blank but a real Closure Date
+      // exists, derive the month label from that instead of reporting the
+      // deal as "Unspecified" while a perfectly good date sits right there.
+      closureMonthRID: normalizeMonthLabel(raw['Closure Month / RID']) || (closureDate ? (MONTH_ABBR[closureDate.getMonth()] + '-' + closureDate.getFullYear()) : ''),
 
       dealSource: cleanText(raw['Deal Source']) || 'Unspecified',
       source2: cleanText(raw['Source 2']),
@@ -889,7 +893,7 @@
       var timeout = setTimeout(function(){
         cleanup();
         reject(new Error('Request timed out — the sheet may be slow to respond, or the Apps Script URL/deployment access needs checking.'));
-      }, 15000);
+      }, 25000);
 
       function cleanup(){
         clearTimeout(timeout);
