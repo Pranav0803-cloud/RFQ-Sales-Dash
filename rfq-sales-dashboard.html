@@ -416,10 +416,14 @@
 
       <h2 class="text-sm font-semibold text-slate-500 dark:text-slate-400 mt-8 mb-1">Activity Dashboard</h2>
       <div class="text-[11px] text-slate-400 dark:text-slate-500 mb-3">RFQ cohorts by the month they were raised — every month to date. Click a deal count to see the RFQs behind it.</div>
-      <div class="mb-3">
+      <div class="flex flex-wrap gap-2 mb-3">
         <div class="relative msel" id="mselActivityOwner">
           <button class="msel-btn px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800">Deal Owner <span class="msel-count text-slate-400"></span></button>
           <div class="msel-panel absolute z-30 mt-1 w-56 max-h-64 overflow-y-auto rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-lg p-2"></div>
+        </div>
+        <div class="relative msel" id="mselActivityMonth">
+          <button class="msel-btn px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800">Month <span class="msel-count text-slate-400"></span></button>
+          <div class="msel-panel absolute z-30 mt-1 w-40 max-h-64 overflow-y-auto rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-lg p-2"></div>
         </div>
       </div>
       <div class="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800 mb-8">
@@ -438,10 +442,14 @@
 
       <h2 class="text-sm font-semibold text-slate-500 dark:text-slate-400 mt-8 mb-1">Pipeline Dashboard</h2>
       <div class="text-[11px] text-slate-400 dark:text-slate-500 mb-3">Expected-closure cohorts — this month onward. Click a deal count to see the RFQs behind it.</div>
-      <div class="mb-3">
+      <div class="flex flex-wrap gap-2 mb-3">
         <div class="relative msel" id="mselPipelineOwner">
           <button class="msel-btn px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800">Deal Owner <span class="msel-count text-slate-400"></span></button>
           <div class="msel-panel absolute z-30 mt-1 w-56 max-h-64 overflow-y-auto rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-lg p-2"></div>
+        </div>
+        <div class="relative msel" id="mselPipelineMonth">
+          <button class="msel-btn px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800">Month <span class="msel-count text-slate-400"></span></button>
+          <div class="msel-panel absolute z-30 mt-1 w-40 max-h-64 overflow-y-auto rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-lg p-2"></div>
         </div>
       </div>
       <div class="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800">
@@ -1069,6 +1077,7 @@
     var panel = container.querySelector('.msel-panel');
     var btn = container.querySelector('.msel-btn');
     var values = uniqueValues(field);
+    if (opts.valuesFilter) values = values.filter(opts.valuesFilter);
     if (opts.groupByYear) {
       values = values.slice().sort(function(a, b){
         var pa = parseMonthYearLabel(a), pb = parseMonthYearLabel(b);
@@ -2137,13 +2146,15 @@
   });
   var activityOwnerFilter = [];
   var pipelineOwnerFilter = [];
+  var activityMonthFilter = [];
+  var pipelineMonthFilter = [];
 
   function isCurrentOrFutureMonthLabel(label){
     var idx = monthIndexFromLabel(label);
     return idx !== null && idx >= currentMonthIndex();
   }
 
-  function renderCohortReport(tbodyId, ownerFilterArr, monthField, restrictFn){
+  function renderCohortReport(tbodyId, ownerFilterArr, monthFilterArr, monthField, restrictFn){
     var tbody = document.getElementById(tbodyId);
     if (!tbody) return;
     var scoped = DATA.filter(function(d){
@@ -2151,6 +2162,7 @@
       var m = d[monthField];
       if (!m) return false;
       if (restrictFn && !restrictFn(m)) return false;
+      if (monthFilterArr.length && monthFilterArr.indexOf(m) === -1) return false;
       return true;
     });
 
@@ -2255,10 +2267,10 @@
   }
 
   function renderActivityDashboard(){
-    renderCohortReport('activityDashboardBody', activityOwnerFilter, 'monthOfRFQ', null);
+    renderCohortReport('activityDashboardBody', activityOwnerFilter, activityMonthFilter, 'monthOfRFQ', null);
   }
   function renderPipelineDashboard(){
-    renderCohortReport('pipelineDashboardBody', pipelineOwnerFilter, 'expectedClosureMonth', isCurrentOrFutureMonthLabel);
+    renderCohortReport('pipelineDashboardBody', pipelineOwnerFilter, pipelineMonthFilter, 'expectedClosureMonth', isCurrentOrFutureMonthLabel);
   }
   function refreshCohortReportFilters(){
     if (!document.getElementById('mselActivityOwner')) return;
@@ -2267,9 +2279,22 @@
       setValue: function(arr){ activityOwnerFilter = arr; },
       onApply: renderActivityDashboard
     });
+    buildMultiSelect('mselActivityMonth', 'monthOfRFQ', {
+      groupByYear: true,
+      getValue: function(){ return activityMonthFilter; },
+      setValue: function(arr){ activityMonthFilter = arr; },
+      onApply: renderActivityDashboard
+    });
     buildMultiSelect('mselPipelineOwner', 'dealOwner', {
       getValue: function(){ return pipelineOwnerFilter; },
       setValue: function(arr){ pipelineOwnerFilter = arr; },
+      onApply: renderPipelineDashboard
+    });
+    buildMultiSelect('mselPipelineMonth', 'expectedClosureMonth', {
+      groupByYear: true,
+      valuesFilter: isCurrentOrFutureMonthLabel, // only offer months the report can actually show
+      getValue: function(){ return pipelineMonthFilter; },
+      setValue: function(arr){ pipelineMonthFilter = arr; },
       onApply: renderPipelineDashboard
     });
   }
