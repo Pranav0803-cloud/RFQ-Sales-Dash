@@ -413,6 +413,50 @@
           <div class="h-72"><canvas id="chartExpectedVsClosedOwner"></canvas></div>
         </div>
       </div>
+
+      <h2 class="text-sm font-semibold text-slate-500 dark:text-slate-400 mt-8 mb-1">Activity Dashboard</h2>
+      <div class="text-[11px] text-slate-400 dark:text-slate-500 mb-3">RFQ cohorts by the month they were raised — every month to date. Click a deal count to see the RFQs behind it.</div>
+      <div class="mb-3">
+        <div class="relative msel" id="mselActivityOwner">
+          <button class="msel-btn px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800">Deal Owner <span class="msel-count text-slate-400"></span></button>
+          <div class="msel-panel absolute z-30 mt-1 w-56 max-h-64 overflow-y-auto rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-lg p-2"></div>
+        </div>
+      </div>
+      <div class="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800 mb-8">
+        <table class="min-w-full text-xs">
+          <thead><tr>
+            <th class="text-left px-3 py-2 font-medium text-slate-500 dark:text-slate-400">Month</th>
+            <th class="text-right px-3 py-2 font-medium text-slate-500 dark:text-slate-400">Total Pipeline</th>
+            <th class="text-right px-3 py-2 font-medium text-slate-500 dark:text-slate-400"># Deals</th>
+            <th class="text-right px-3 py-2 font-medium text-slate-500 dark:text-slate-400">Closed Won</th>
+            <th class="text-right px-3 py-2 font-medium text-slate-500 dark:text-slate-400">Win Rate</th>
+            <th class="text-right px-3 py-2 font-medium text-slate-500 dark:text-slate-400">Active Pipeline</th>
+          </tr></thead>
+          <tbody id="activityDashboardBody"></tbody>
+        </table>
+      </div>
+
+      <h2 class="text-sm font-semibold text-slate-500 dark:text-slate-400 mt-8 mb-1">Pipeline Dashboard</h2>
+      <div class="text-[11px] text-slate-400 dark:text-slate-500 mb-3">Expected-closure cohorts — this month onward. Click a deal count to see the RFQs behind it.</div>
+      <div class="mb-3">
+        <div class="relative msel" id="mselPipelineOwner">
+          <button class="msel-btn px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800">Deal Owner <span class="msel-count text-slate-400"></span></button>
+          <div class="msel-panel absolute z-30 mt-1 w-56 max-h-64 overflow-y-auto rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-lg p-2"></div>
+        </div>
+      </div>
+      <div class="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800">
+        <table class="min-w-full text-xs">
+          <thead><tr>
+            <th class="text-left px-3 py-2 font-medium text-slate-500 dark:text-slate-400">Month</th>
+            <th class="text-right px-3 py-2 font-medium text-slate-500 dark:text-slate-400">Total Pipeline</th>
+            <th class="text-right px-3 py-2 font-medium text-slate-500 dark:text-slate-400"># Deals</th>
+            <th class="text-right px-3 py-2 font-medium text-slate-500 dark:text-slate-400">Closed Won</th>
+            <th class="text-right px-3 py-2 font-medium text-slate-500 dark:text-slate-400">Win Rate</th>
+            <th class="text-right px-3 py-2 font-medium text-slate-500 dark:text-slate-400">Active Pipeline</th>
+          </tr></thead>
+          <tbody id="pipelineDashboardBody"></tbody>
+        </table>
+      </div>
     </section>
 
   </main>
@@ -566,6 +610,15 @@
     var s = cleanText(v);
     if (!s) return '';
     if (/^\d{4}-\d{2}-\d{2}T/.test(s)) return sheetDateToMonthLabel(s) || s;
+    // Canonicalize any recognizable "Mon YYYY" / "Month-YYYY" text to the
+    // standard 3-letter abbreviation — the sheet has both "Sep-2026" and
+    // "Sept-2026" for the same month, which would otherwise silently split
+    // one month's deals across two separate report rows.
+    var m = s.match(/^([A-Za-z]{3,})[-\s]+(\d{4})$/);
+    if (m) {
+      var mi = MONTH_NAMES.indexOf(m[1].slice(0,3).toLowerCase());
+      if (mi > -1) return MONTH_ABBR[mi] + '-' + m[2];
+    }
     return s;
   }
 
@@ -709,7 +762,7 @@
       employees: parseInteger(raw['Number of Employees']),
 
       dateOfRFQ: dateOfRFQ,
-      monthOfRFQ: normalizeMonthLabel(raw['Month of RFQ']),
+      monthOfRFQ: normalizeMonthLabel(raw['Month of RFQ']) || (dateOfRFQ ? (MONTH_ABBR[dateOfRFQ.getMonth()] + '-' + dateOfRFQ.getFullYear()) : ''),
       expectedClosureMonth: expectedClosureMonth,
       closureDate: closureDate,
       // "Closure Month / RID" is its own sheet column, separate from
@@ -1567,6 +1620,7 @@
     renderAllCharts();
     renderMyDeals();
     renderTargetsSection();
+    refreshCohortReportFilters(); renderActivityDashboard(); renderPipelineDashboard();
   }
 
   document.getElementById('modalSave').addEventListener('click', function(){
@@ -2069,6 +2123,157 @@
     });
   }
 
+  /* =====================================================================
+     8c. ACTIVITY DASHBOARD / PIPELINE DASHBOARD — same cohort-report shape,
+     reused for two different groupings: Activity groups by the month an
+     RFQ was raised (naturally bounded to past/current since that date can
+     never be in the future); Pipeline groups by Expected Closure Month,
+     restricted to this month onward. Both show every rep by default with
+     an optional owner filter, and both let you click into a month's deal
+     count to see the actual RFQs behind it.
+     ===================================================================== */
+  var ACTIVE_REPORT_STAGES = STATUS_ORDER.filter(function(s){
+    return ['On Hold','Not Working','Closed Lost','Closed Won'].indexOf(s) === -1;
+  });
+  var activityOwnerFilter = [];
+  var pipelineOwnerFilter = [];
+
+  function isCurrentOrFutureMonthLabel(label){
+    var idx = monthIndexFromLabel(label);
+    return idx !== null && idx >= currentMonthIndex();
+  }
+
+  function renderCohortReport(tbodyId, ownerFilterArr, monthField, restrictFn){
+    var tbody = document.getElementById(tbodyId);
+    if (!tbody) return;
+    var scoped = DATA.filter(function(d){
+      if (ownerFilterArr.length && ownerFilterArr.indexOf(d.dealOwner) === -1) return false;
+      var m = d[monthField];
+      if (!m) return false;
+      if (restrictFn && !restrictFn(m)) return false;
+      return true;
+    });
+
+    var groups = {};
+    scoped.forEach(function(d){
+      var m = d[monthField];
+      (groups[m] = groups[m] || []).push(d);
+    });
+    var monthKeys = Object.keys(groups).sort(function(a, b){
+      var ma = parseMonthYearLabel(a), mb = parseMonthYearLabel(b);
+      if (ma && mb) return (ma.year - mb.year) || (ma.month - mb.month);
+      return a.localeCompare(b);
+    });
+
+    var grand = { pipeline: 0, deals: 0, won: 0, active: 0, wonCount: 0 };
+    var rowsHTML = monthKeys.map(function(m){
+      var deals = groups[m];
+      var pipeline = deals.reduce(function(s,d){ return s + d.expectedPremium; }, 0);
+      var wonDeals = deals.filter(function(d){ return d.dealStatus === 'Closed Won'; });
+      var wonRevenue = wonDeals.reduce(function(s,d){ return s + d.finalClosureAmount; }, 0);
+      // "Active" here is deliberately narrower than the Sales Pipeline
+      // tab's definition: only the genuinely-being-worked stages, not
+      // On Hold or Not Working.
+      var activeRevenue = deals.filter(function(d){ return ACTIVE_REPORT_STAGES.indexOf(d.dealStatus) > -1; })
+        .reduce(function(s,d){ return s + d.expectedPremium; }, 0);
+      // Win rate = Closed Won deals / ALL deals in the cohort (not just
+      // decided ones) — a deliberate choice so it reads as "% of everything
+      // raised that month that's turned into revenue", not just win-vs-loss.
+      var winRate = deals.length ? (wonDeals.length / deals.length * 100) : 0;
+
+      grand.pipeline += pipeline; grand.deals += deals.length; grand.won += wonRevenue;
+      grand.active += activeRevenue; grand.wonCount += wonDeals.length;
+
+      return '<tr class="border-t border-slate-100 dark:border-slate-800">' +
+        '<td class="px-3 py-2 font-medium">' + escapeHTML(m) + '</td>' +
+        '<td class="px-3 py-2 text-right tabular-nums">' + fmtMoney(pipeline) + '</td>' +
+        '<td class="px-3 py-2 text-right tabular-nums"><button data-month="' + escapeHTML(m) + '" class="cohort-count text-[#0055ff] hover:underline">' + deals.length + '</button></td>' +
+        '<td class="px-3 py-2 text-right tabular-nums">' + fmtMoney(wonRevenue) + '</td>' +
+        '<td class="px-3 py-2 text-right tabular-nums">' + winRate.toFixed(1) + '%</td>' +
+        '<td class="px-3 py-2 text-right tabular-nums">' + fmtMoney(activeRevenue) + '</td>' +
+      '</tr>';
+    }).join('');
+
+    var totalWinRate = grand.deals ? (grand.wonCount / grand.deals * 100) : 0;
+    var totalRow = '<tr class="border-t border-slate-200 dark:border-slate-700 font-semibold">' +
+      '<td class="px-3 py-2">Grand Total</td>' +
+      '<td class="px-3 py-2 text-right tabular-nums">' + fmtMoney(grand.pipeline) + '</td>' +
+      '<td class="px-3 py-2 text-right tabular-nums">' + grand.deals + '</td>' +
+      '<td class="px-3 py-2 text-right tabular-nums">' + fmtMoney(grand.won) + '</td>' +
+      '<td class="px-3 py-2 text-right tabular-nums">' + totalWinRate.toFixed(1) + '%</td>' +
+      '<td class="px-3 py-2 text-right tabular-nums">' + fmtMoney(grand.active) + '</td>' +
+    '</tr>';
+
+    tbody.innerHTML = monthKeys.length
+      ? (rowsHTML + totalRow)
+      : '<tr><td colspan="6" class="px-3 py-4 text-center text-slate-400 text-[11px]">No data for this selection.</td></tr>';
+
+    tbody.querySelectorAll('.cohort-count').forEach(function(btn){
+      var m = btn.getAttribute('data-month');
+      btn.addEventListener('click', function(){ openCohortMonthModal(m, groups[m]); });
+    });
+  }
+
+  // Drill-down from a cohort report's deal count: every RFQ in that month,
+  // across whichever owners are currently in scope for that report.
+  function openCohortMonthModal(monthLabel, deals){
+    if (!deals) return;
+    editingRow = null;
+    document.getElementById('modalCompany').textContent = monthLabel + ' — ' + deals.length + ' RFQ' + (deals.length === 1 ? '' : 's');
+    var totalValue = deals.reduce(function(s,d){ return s + d.expectedPremium; }, 0);
+    document.getElementById('modalSub').textContent = fmtMoney(totalValue) + ' total expected premium';
+    var sorted = deals.slice().sort(function(a, b){ return b.expectedPremium - a.expectedPremium; });
+    var body = document.getElementById('modalBody');
+    body.innerHTML = '<div class="overflow-x-auto -mx-5 px-5"><table class="min-w-full text-xs">' +
+      '<thead><tr>' +
+        '<th class="text-left px-2 py-1.5 font-medium text-slate-500 dark:text-slate-400">Company</th>' +
+        '<th class="text-left px-2 py-1.5 font-medium text-slate-500 dark:text-slate-400">Owner</th>' +
+        '<th class="text-left px-2 py-1.5 font-medium text-slate-500 dark:text-slate-400">Type</th>' +
+        '<th class="text-left px-2 py-1.5 font-medium text-slate-500 dark:text-slate-400">Source / Broker</th>' +
+        '<th class="text-right px-2 py-1.5 font-medium text-slate-500 dark:text-slate-400">Expected Premium</th>' +
+        '<th class="text-left px-2 py-1.5 font-medium text-slate-500 dark:text-slate-400">Stage</th>' +
+        '<th class="text-center px-2 py-1.5 font-medium text-slate-500 dark:text-slate-400">Edit</th>' +
+      '</tr></thead><tbody>' +
+      sorted.map(function(d){
+        var c = STATUS_COLORS[d.dealStatus] || { chip:'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300' };
+        return '<tr class="border-t border-slate-100 dark:border-slate-800">' +
+          '<td class="px-2 py-1.5 font-medium">' + escapeHTML(d.company) + '</td>' +
+          '<td class="px-2 py-1.5">' + escapeHTML(d.dealOwner) + '</td>' +
+          '<td class="px-2 py-1.5">' + escapeHTML(d.businessType) + '</td>' +
+          '<td class="px-2 py-1.5 text-slate-500 dark:text-slate-400">' + escapeHTML(d.broker || d.dealSource) + '</td>' +
+          '<td class="px-2 py-1.5 text-right tabular-nums">' + fmtMoney(d.expectedPremium) + '</td>' +
+          '<td class="px-2 py-1.5"><span class="chip ' + c.chip + '">' + escapeHTML(d.dealStatus) + '</span></td>' +
+          '<td class="px-2 py-1.5 text-center"><button data-edit="' + d._row + '" class="text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 text-[11px]">✎ Edit</button></td>' +
+        '</tr>';
+      }).join('') +
+      '</tbody></table></div>';
+    body.querySelectorAll('[data-edit]').forEach(function(btn){
+      btn.addEventListener('click', function(){ openEditModal(btn.getAttribute('data-edit')); });
+    });
+    document.getElementById('modalFooter').classList.add('hidden');
+    document.getElementById('modalBackdrop').classList.add('open');
+  }
+
+  function renderActivityDashboard(){
+    renderCohortReport('activityDashboardBody', activityOwnerFilter, 'monthOfRFQ', null);
+  }
+  function renderPipelineDashboard(){
+    renderCohortReport('pipelineDashboardBody', pipelineOwnerFilter, 'expectedClosureMonth', isCurrentOrFutureMonthLabel);
+  }
+  function refreshCohortReportFilters(){
+    if (!document.getElementById('mselActivityOwner')) return;
+    buildMultiSelect('mselActivityOwner', 'dealOwner', {
+      getValue: function(){ return activityOwnerFilter; },
+      setValue: function(arr){ activityOwnerFilter = arr; },
+      onApply: renderActivityDashboard
+    });
+    buildMultiSelect('mselPipelineOwner', 'dealOwner', {
+      getValue: function(){ return pipelineOwnerFilter; },
+      setValue: function(arr){ pipelineOwnerFilter = arr; },
+      onApply: renderPipelineDashboard
+    });
+  }
+
   function renderAllCharts(){
     renderBrokerChart();
     renderTrendChart();
@@ -2098,6 +2303,7 @@
     renderAllCharts();
     renderMyDeals();
     renderTargetsSection();
+    refreshCohortReportFilters(); renderActivityDashboard(); renderPipelineDashboard();
     buildNewRfqForm();
     var now = new Date();
     document.getElementById('asOf').textContent = 'as of ' + now.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
@@ -2154,6 +2360,7 @@
         buildMultiSelect('mselCity', 'city');
         buildMultiSelect('mselClosureMonth', 'expectedClosureMonth', { groupByYear: true });
         applyFilters(); renderKPIs(); renderAllCharts(); renderMyDeals(); renderTargetsSection();
+        refreshCohortReportFilters(); renderActivityDashboard(); renderPipelineDashboard();
         statusEl.textContent = 'Submitted — row ' + result.row + ' added to the sheet.';
         toast('New RFQ added to the sheet.');
         buildNewRfqForm();
