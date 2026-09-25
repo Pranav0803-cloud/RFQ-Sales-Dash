@@ -441,7 +441,7 @@
       </div>
 
       <h2 class="text-sm font-semibold text-slate-500 dark:text-slate-400 mt-8 mb-1">Pipeline Dashboard</h2>
-      <div class="text-[11px] text-slate-400 dark:text-slate-500 mb-3">Expected-closure cohorts — this month onward. Click a deal count to see the RFQs behind it.</div>
+      <div class="text-[11px] text-slate-400 dark:text-slate-500 mb-3">Expected-closure cohorts — future months only, excluding the current month. Click a deal count to see the RFQs behind it.</div>
       <div class="flex flex-wrap gap-2 mb-3">
         <div class="relative msel" id="mselPipelineOwner">
           <button class="msel-btn px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800">Deal Owner <span class="msel-count text-slate-400"></span></button>
@@ -2137,7 +2137,7 @@
      reused for two different groupings: Activity groups by the month an
      RFQ was raised (naturally bounded to past/current since that date can
      never be in the future); Pipeline groups by Expected Closure Month,
-     restricted to this month onward. Both show every rep by default with
+     restricted to strictly future months (excluding the current one). Both show every rep by default with
      an optional owner filter, and both let you click into a month's deal
      count to see the actual RFQs behind it.
      ===================================================================== */
@@ -2149,12 +2149,12 @@
   var activityMonthFilter = [];
   var pipelineMonthFilter = [];
 
-  function isCurrentOrFutureMonthLabel(label){
+  function isFutureMonthLabel(label){
     var idx = monthIndexFromLabel(label);
-    return idx !== null && idx >= currentMonthIndex();
+    return idx !== null && idx > currentMonthIndex();
   }
 
-  function renderCohortReport(tbodyId, ownerFilterArr, monthFilterArr, monthField, restrictFn){
+  function renderCohortReport(tbodyId, ownerFilterArr, monthFilterArr, monthField, restrictFn, sortDesc){
     var tbody = document.getElementById(tbodyId);
     if (!tbody) return;
     var scoped = DATA.filter(function(d){
@@ -2173,8 +2173,8 @@
     });
     var monthKeys = Object.keys(groups).sort(function(a, b){
       var ma = parseMonthYearLabel(a), mb = parseMonthYearLabel(b);
-      if (ma && mb) return (ma.year - mb.year) || (ma.month - mb.month);
-      return a.localeCompare(b);
+      var cmp = (ma && mb) ? ((ma.year - mb.year) || (ma.month - mb.month)) : a.localeCompare(b);
+      return sortDesc ? -cmp : cmp;
     });
 
     var grand = { pipeline: 0, deals: 0, won: 0, active: 0, wonCount: 0 };
@@ -2267,10 +2267,10 @@
   }
 
   function renderActivityDashboard(){
-    renderCohortReport('activityDashboardBody', activityOwnerFilter, activityMonthFilter, 'monthOfRFQ', null);
+    renderCohortReport('activityDashboardBody', activityOwnerFilter, activityMonthFilter, 'monthOfRFQ', null, true);
   }
   function renderPipelineDashboard(){
-    renderCohortReport('pipelineDashboardBody', pipelineOwnerFilter, pipelineMonthFilter, 'expectedClosureMonth', isCurrentOrFutureMonthLabel);
+    renderCohortReport('pipelineDashboardBody', pipelineOwnerFilter, pipelineMonthFilter, 'expectedClosureMonth', isFutureMonthLabel);
   }
   function refreshCohortReportFilters(){
     if (!document.getElementById('mselActivityOwner')) return;
@@ -2292,7 +2292,7 @@
     });
     buildMultiSelect('mselPipelineMonth', 'expectedClosureMonth', {
       groupByYear: true,
-      valuesFilter: isCurrentOrFutureMonthLabel, // only offer months the report can actually show
+      valuesFilter: isFutureMonthLabel, // only offer months the report can actually show
       getValue: function(){ return pipelineMonthFilter; },
       setValue: function(arr){ pipelineMonthFilter = arr; },
       onApply: renderPipelineDashboard
